@@ -89,8 +89,6 @@ Bk_all, Bk_all_smooth, k_all, z_all = load_boost_data()
 Bk_lin_all, _, _ = load_boost_data_lin()
 p_all = load_params()
 
-print(p_all.shape, flush=True)
-
 ## Data prep
 z_index = 1
 
@@ -106,13 +104,11 @@ target_vals = Bk_all_val[:, z_index, :]
 input_params = load_params(LIBRARY_PARAM_FILE_VAL)
 
 train_indices = [i for i in np.arange(49)] # if i not in test_indices]
-print(train_indices, flush=True)
 
 p_all_train = p_all[train_indices]
 y_vals_train = Bk_all[:, z_index, :][train_indices]
 
 sepia_data = sepia_data_format(p_all_train, y_vals_train, y_ind)
-print(sepia_data)
 model_filename = '/global/homes/c/carolazn/CubicGalileonEmu/CubicGalileonEmu/model/multivariate_model_z_index' + str(z_index) 
 
 #sepia_model = do_pca(sepia_data, exp_variance=0.95)
@@ -642,7 +638,7 @@ def comoving_radial_dist_CuGal(a_arr, UE_arr, cosmo, a_array):
         mask = (z_integral <= z_lower_bound)  # Mask the integrand for the valid integration range
         
         # Perform integration for the valid portion of the integrand
-        integral = scipy.integrate.simps(integrand[mask], x_integral[mask])
+        integral = scipy.integrate.simpson(integrand[mask], x_integral[mask])
         results.append(integral)
 
     return np.array(results)

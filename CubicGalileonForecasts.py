@@ -150,9 +150,11 @@ for i in range(4):
 z = redshift_range
 
 #################################################################
+# get filename from command line
+config_file = sys.argv[1]
 
 # read the config file
-with open('./ini_files/config_run.yaml', 'r') as f:
+with open(config_file, 'r') as f:
     config = yaml.safe_load(f)
 
 ############# GET SIMULATED DATAVECTOR #########################
@@ -508,7 +510,7 @@ print(nwalkers, ndim)
 
 # Create the output directory and set up the HDF5 backend
 mcmc_dir = "/global/homes/c/carolazn/CuGal_Emu_project_mcmc/mcmc"
-filename = mcmc_dir + "/mcmc_CubicGalileon_3x2ptonly_notemu_2026_validation_edges_i_23.h5"
+filename = mcmc_dir + "/ " + config['output']['chain_name'] + ".h5"
 backend = emcee.backends.HDFBackend(filename)
 
 # Optionally reset the backend if starting a new run
