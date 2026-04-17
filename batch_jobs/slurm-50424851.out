@@ -1,0 +1,71 @@
+
+Lmod is automatically replacing "cray-mpich/9.0.1" with "cray-mpich-abi/9.0.1".
+
+Running forecast for file: python CubicGalileonForecasts.py ./ini_files/config_run_ell3000_k0p3.yaml
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+/global/homes/c/carolazn/.conda/envs/cGForecasts_env/bin/python: can't open file '/global/u2/c/carolazn/CuGal_Emu_project_mcmc/batch_jobs/CubicGalileonForecasts.py': [Errno 2] No such file or directory
+srun: error: nid005824: tasks 0-63: Exited with exit code 2
+srun: Terminating StepId=50424851.0
+Time taken for srun: 7 seconds

@@ -29,6 +29,12 @@ data:
   params: ./ini_files/params.yaml
 
 output: 
-  chain_name: mcmc_cG_3x2pt_LSSTY1_validation_edges_45
-
+  chain_name: mcmc_cG_3x2pt_LSSTY1_validation_edges_45_ell3000_k0p3
+sampler: 
+  mcmc:
+    verbose: True
+    n_eff: 10000
+    n_live: 3000
+    resume: True
+    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_validation_edges_45_ell3000_k0p3
     

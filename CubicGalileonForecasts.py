@@ -33,7 +33,9 @@ from functools import lru_cache
 import scipy.integrate
 from scipy.interpolate import interpn
 from scipy.interpolate import CubicSpline
+from scipy.stats import norm
 import gc
+from datetime import timedelta
 
 # cosmology
 import pyccl as ccl
@@ -57,6 +59,7 @@ from multiprocessing import Pool
 import multiprocessing
 
 # MCMC
+from nautilus import Prior, Sampler
 import emcee
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
@@ -163,12 +166,12 @@ params_filename = config['data']['params']
 with open(params_filename, 'r') as f:
     params = yaml.safe_load(f)
 
-Bias_distribution_fiducial = np.array([params['b1_1']*np.ones(len(z)),
-                             params['b1_2']*np.ones(len(z)),
-                             params['b1_3']*np.ones(len(z)),
-                             params['b1_4']*np.ones(len(z)),
-                             params['b1_5']*np.ones(len(z))])
-
+Bias_distribution_fiducial = np.array([params['b1']*np.ones(len(z)),
+                             params['b2']*np.ones(len(z)),
+                             params['b3']*np.ones(len(z)),
+                             params['b4']*np.ones(len(z)),
+                             params['b5']*np.ones(len(z))]
+)
 cosmo_fid = ccl.Cosmology(Omega_c = 0.269619, 
                           Omega_b = 0.050041,
                           h = 0.6688,
@@ -418,6 +421,9 @@ newdat = scale_cuts(cosmo_fid, ell_mockdata,D_mockdata, D_kk_mockdata_test, SRD_
 
 gauss_invcov_rotated = np.linalg.pinv(SRD_compare)
 
+for i in range(len(newdat)):
+    gauss_invcov_rotated[newdat[i]] = np.zeros(len(gauss_invcov_rotated[0]))
+    gauss_invcov_rotated[:,newdat[i]] = np.zeros(len(gauss_invcov_rotated[0]))
 
 # WITHOUT NOISE
 C_ell_data_mock = [D_mockdata, ell_mockdata, z,  Binned_distribution_source,\
@@ -426,8 +432,10 @@ C_ell_data_mock = [D_mockdata, ell_mockdata, z,  Binned_distribution_source,\
 
 ######################## LIKELIHOOD ################################
 
-def log_likelihood(theta, Data, invcovmat):
-    Omega_c, f_phi, A_s1e9, h, n_s, wb, b1, b2, b3, b4, b5 = theta 
+def log_likelihood(theta_dict, Data, invcovmat):
+    theta = [float(theta_dict[key]) for key in ["Omega_m", "f_phi", "1e9As", "h", "ns", "Omega_b", "b1", "b2", "b3", "b4", "b5"]]
+
+    Omega_m, f_phi, A_s1e9, h, n_s, Omega_b, b1, b2, b3, b4, b5 = theta 
     Bias_distribution = np.array([b1*np.ones(len(z)),
                              b2*np.ones(len(z)),
                              b3*np.ones(len(z)),
@@ -437,9 +445,10 @@ def log_likelihood(theta, Data, invcovmat):
     #A_s = cosmo_universe["A_s"]
     A_s = A_s1e9*1e-9
     #n_s = cosmo_universe["n_s"]
+    Omega_c = Omega_m - Omega_b
 
     cosmoMCMCstep = ccl.Cosmology(Omega_c = Omega_c, 
-                      Omega_b = wb/h**2,
+                      Omega_b = Omega_b,
                       h = h,
                       n_s = n_s,
                       A_s = A_s)
@@ -449,47 +458,50 @@ def log_likelihood(theta, Data, invcovmat):
 
 #### Get Planck priors #####
 sampler_Planck_arr = np.load("/global/homes/c/carolazn/CuGal_Emu_project_mcmc/Prior_Planck_arr.npy")
-mu_prior = [cosmo_fid['n_s'], cosmo_fid["Omega_b"]*cosmo_fid["h"]**2]
+mu_prior = [cosmo_universe['n_s'], cosmo_universe["Omega_b"]*cosmo_universe["h"]**2]
 cov_prior = np.cov(sampler_Planck_arr.T)
 
 with open(config['data']['params'], 'r') as f:
         params = yaml.safe_load(f)
 
-def log_prior(theta):
-    Omega_c, f_phi, A_s1e9, h, n_s, wb, b1, b2, b3, b4, b5 = theta 
+# add additional bespoke priors if needed
+def log_prior(theta_dict):
+    theta = [float(theta_dict[key]) for key in ["Omega_m", "f_phi", "1e9As", "h", "ns", "Omega_b", "b1", "b2", "b3", "b4", "b5"]]
+    Omega_c, f_phi, A_s1e9, h, n_s, Omega_b, b1, b2, b3, b4, b5 = theta 
     priors = params['priors']
-    #flat priors
-    if not (priors['w_c'][0] < Omega_c*h**2 < priors['w_c'][1] and 0.0 < f_phi < 1.0 and priors['1e9As'][0] < A_s1e9 < priors['1e9As'][1] and priors['ns'][0] < n_s < priors['ns'][1] \
-            and priors['h'][0] < h < priors['h'][1] and priors['Omega_b'][0] < wb/h**2 < priors['Omega_b'][1] and priors['b1_1'][0] < b1 < priors['b1_1'][1] and priors['b1_2'][0] < b2 < priors['b1_2'][1] \
-           and priors['b1_3'][0] < b3 < priors['b1_3'][1] and priors['b1_4'][0] < b4 < priors['b1_4'][1] and priors['b1_5'][0] < b5 < priors['b1_5'][1]):
-        return -np.inf
-    
     if not priors['Planck_prior']:
         return 0.0
-    
     gauss_funct = scipy.stats.multivariate_normal(mu_prior, cov_prior)
     
-    return gauss_funct.logpdf([n_s, wb])
+    return gauss_funct.logpdf([n_s, Omega_b*h**2])
 
-def log_probability(theta):
-    lp = log_prior(theta)
+# add standard priors
+prior = Prior()
+params_list = ["Omega_m", "f_phi", "1e9As", "h", "ns", "Omega_b", "b1", "b2", "b3", "b4", "b5"]
+for par_i in params_list:
+    prior.add_parameter(par_i, dist=(params['priors'][par_i][0], params['priors'][par_i][1]))
+
+
+def log_probability(theta_dict):
+    lp = log_prior(theta_dict)
     if not np.isfinite(lp):
         return -np.inf
-    return lp + log_likelihood(theta, C_ell_data_mock, gauss_invcov_rotated)
+    return lp + log_likelihood(theta_dict, C_ell_data_mock, gauss_invcov_rotated)
 
 
 ################## RUN MCMC ########################
 # Set the random seed for reproducibility
 np.random.seed(10)
 
+"""
 # Initialize the walkers
-Omega_c_est = cosmo_fid["Omega_c"]
-h_est = cosmo_fid["h"]
-A_s1e9_est = cosmo_fid["A_s"]*1e9
-n_s_est = cosmo_fid["n_s"]
+Omega_m_est = 0.3
+h_est = 0.68
+A_s1e9_est = 3
+n_s_est = 0.96
 f_phi_est = 0.6
-wb_est = 0.0223
-b1_est = Bias_distribution_fiducial[0][0]
+Omega_b_est = 0.0502
+b1_est = Bias_distribution_fiducial[0][0] 
 b2_est = Bias_distribution_fiducial[1][0]
 b3_est = Bias_distribution_fiducial[2][0]
 b4_est = Bias_distribution_fiducial[3][0]
@@ -498,26 +510,71 @@ b5_est = Bias_distribution_fiducial[4][0]
 n_steps = 15000
 chain_len = 100
 converged = False
-nwalkers = multiprocessing.cpu_count()
+nwalkers = 40
 
 # Initialize the walkers
-pos = [Omega_c_est, f_phi_est, A_s1e9_est, h_est, n_s_est, wb_est,b1_est,b2_est,b3_est,b4_est,b5_est] \
+pos = [Omega_m_est, f_phi_est, A_s1e9_est, h_est, n_s_est, Omega_b_est,b1_est,b2_est,b3_est,b4_est,b5_est] \
 + np.append(np.append(1e-3 * np.random.randn(nwalkers, 4), 1e-5*np.random.randn(nwalkers, 2), axis = 1), \
             1e-3 * np.random.randn(nwalkers, 5), axis = 1)
 
 nwalkers, ndim = pos.shape
 print(nwalkers, ndim)
-
+"""
 # Create the output directory and set up the HDF5 backend
 mcmc_dir = "/global/homes/c/carolazn/CuGal_Emu_project_mcmc/mcmc"
-filename = mcmc_dir + "/ " + config['output']['chain_name'] + ".h5"
-backend = emcee.backends.HDFBackend(filename)
+#filename = mcmc_dir + "/ " + config['output']['chain_name'] + ".h5"
+#backend = emcee.backends.HDFBackend(filename)
 
 # Optionally reset the backend if starting a new run
 #backend.reset(nwalkers, ndim)
 
 print("Running MCMC...")
-with Pool(multiprocessing.cpu_count()) as pool:
+# Ensure the directories exist
+os.makedirs('mcmc', exist_ok=True)
+os.makedirs('mcmc/hdf5', exist_ok=True)
+
+def main():
+    sampler = Sampler(prior, log_probability, 
+                      filepath= mcmc_dir + "/" + config['output']['chain_name'] +'.hdf5', resume=config['sampler']['mcmc']['resume'], n_live=config['sampler']['mcmc']['n_live'], pool=Pool(multiprocessing.cpu_count()))
+    start = time.time()
+    sampler.run(verbose=bool(config['sampler']['mcmc']['verbose']), discard_exploration=True, n_eff=float(config['sampler']['mcmc']['n_eff']))
+    log_z = sampler.evidence()
+    points, log_w, log_l = sampler.posterior()
+    finish = time.time()
+    chain_time = finish-start
+
+    # save header information with Obervable = 3x2pt, LSST Y1, and infromation about scale cuts, parameter values and priors, datavector type/file/index
+
+    header = "# Observable = 3x2pt, LSST Y1 \n" + "# Scale cuts: k_max = {k_max} h/Mpc, ell_max = {ell_cut} \n".format(k_max=k_max, ell_cut=ell_cut) + \
+    "# Parameter values and priors: \n" + "# Omega_m = {Omega_m}, f_phi = {f_phi}, A_s = {A_s}, h = {h}, n_s = {n_s}, wb = {wb}, b1 = {b1}, b2 = {b2}, b3 = {b3}, b4 = {b4}, b5 = {b5} \n".format(
+        Omega_m=cosmo_universe["Omega_m"], f_phi=f_phi_universe, A_s=cosmo_universe["A_s"], h=cosmo_universe["h"], n_s=cosmo_universe["n_s"], wb=cosmo_universe["Omega_b"], b1=Bias_distribution_fiducial[0][0], b2=Bias_distribution_fiducial[1][0], b3=Bias_distribution_fiducial[2][0], b4=Bias_distribution_fiducial[3][0], b5=Bias_distribution_fiducial[4][0]) + \
+    "# Priors: \n" + "# Omega_m: {Omega_m_prior} \n".format(Omega_m_prior=str(params['priors']['Omega_m'])) + \
+    "# f_phi: {f_phi_prior} \n".format(f_phi_prior=str(params['priors']['f_phi'])) + \
+    "# A_s: {A_s_prior} \n".format(A_s_prior=str(params['priors']['1e9As'])) + \
+    "# h: {h_prior} \n".format(h_prior=str(params['priors']['h'])) + \
+    "# n_s: {n_s_prior} \n".format(n_s_prior=str(params['priors']['ns'])) + \
+    "# Omega_b: {Omega_b_prior} \n".format(Omega_b_prior=str(params['priors']['Omega_b'])) + \
+    "# b1: {b1_prior} \n".format(b1_prior=str(params['priors']['b1'])) + \
+    "# b2: {b2_prior} \n".format(b2_prior=str(params['priors']['b2'])) + \
+    "# b3: {b3_prior} \n".format(b3_prior=str(params['priors']['b3'])) + \
+    "# b4: {b4_prior} \n".format(b4_prior=str(params['priors']['b4'])) + \
+    "# b5: {b5_prior} \n".format(b5_prior=str(params['priors']['b5'])) + "Planck priors on n_s and wb: {Planck_prior} \n".format(Planck_prior=str(params['priors']['Planck_prior'])) + \
+    "# Datavector type: {datavector_type} \n".format(datavector_type="from params file" if config['data']['type'] == 1 else "from cosmo file") + \
+    "# Datavector file/index (if from cosmo file): {datavector_info} \n".format(datavector_info="file: " + config['data']['cosmo_file'] + ", index: " + str(config['data']['index']) if config['data']['type'] == 0 else "N/A")
+
+    np.savetxt("chains/chain_"+config['output']['chain_name']+".txt", np.c_[points, log_w, log_l], header=header, footer='log_Z = {log_z};  chain_time = {chain_time} (--> {chain_time_hms} hh:mm:ss)'.format(log_z=log_z, chain_time=chain_time, chain_time_hms=timedelta(seconds=chain_time)))
+    
+
+if __name__ == "__main__":
+    try:
+        main()
+    finally:
+        # Ensure all pools are properly closed
+        multiprocessing.active_children()
+
+
+"""
+with Pool(5) as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, backend=backend, pool=pool)
     pos = sampler.get_last_sample() if backend.iteration > 0 else pos
 
@@ -530,7 +587,7 @@ with Pool(multiprocessing.cpu_count()) as pool:
         pool.join()
         del pool  # Ensure the pool object is removed
         gc.collect()  # Collect any lingering garbage
-        pool = Pool(multiprocessing.cpu_count())
+        pool = Pool(5)
         sampler.pool = pool
         pos = sampler.get_last_sample() if backend.iteration > 0 else pos
         
@@ -540,6 +597,6 @@ with Pool(multiprocessing.cpu_count()) as pool:
             converged = np.all(tau * 100 < sampler.iteration)
         except emcee.autocorr.AutocorrError:
             pass
-
+"""
 
 
