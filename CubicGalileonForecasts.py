@@ -296,8 +296,8 @@ elif config['data']['type'] == 1:
     Omega_m = params['Omega_m']
     Omega_b = params['Omega_b']
     h = params['h']
-    n_s = params['n_s']
-    A_s = params['A_s']
+    n_s = params['ns']
+    A_s = params['1e9As']*1e-9
     f_phi_universe = params['f_phi']
 
     # Define cosmology -- our "universe cosmology"
@@ -375,8 +375,8 @@ if config['data']['type'] == 2:
     Omega_m = params['Omega_m']
     Omega_b = params['Omega_b']
     h = params['h']
-    n_s = params['n_s']
-    A_s = params['A_s']
+    n_s = params['ns']
+    A_s = params['1e9As']*1e-9
     f_phi_universe = params['f_phi']
 
     cosmo_universe =  ccl.Cosmology(Omega_c = Omega_m - Omega_b,
@@ -418,7 +418,7 @@ if config['data']['type'] == 2:
 
     Bk_CuGal_cosmo_funct_ECOSMOG =  scipy.interpolate.RectBivariateSpline(1/(np.array(scale_factors[idx-1:][::-1])) - 1, k_ECOSMOG_cut, Bk_vals_sim_cut[::-1])
 
-    a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog = CuGal_initialize(f_phi_universe[i], cosmo_universe)
+    a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog = CuGal_initialize(f_phi_universe, cosmo_universe)
 
     P_delta2D_GR_lin_ecosmog = Get_Pk2D_obj_kk_GR_lin(cosmo_universe)
     P_delta2D_GR_nl_ecosmog = Get_Pk2D_obj_kk_GR_nl(cosmo_universe)
@@ -431,7 +431,7 @@ if config['data']['type'] == 2:
     binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
 
     # find C_ell for non-linear matter power spectrum
-    mockdata = Cell_CuGal_Validation(binned_ell,a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog, f_phi_universe[i], cosmo_universe, 
+    mockdata = Cell_CuGal_Validation(binned_ell,a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog, f_phi_universe, cosmo_universe, 
                         z , Binned_distribution_source,Binned_distribution_lens,
                         Bias_distribution_fiducial, P_delta2D_GR_nl_ecosmog, Bk_CuGal_cosmo_funct_ECOSMOG, tracer1_type="k", tracer2_type="k")
 
@@ -444,7 +444,7 @@ if config['data']['type'] == 2:
     binned_ell = bin_ell_delk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata,Binned_distribution_source,Binned_distribution_lens)
 
     # find C_ell for non-linear matter power spectrum
-    mockdata = Cell_CuGal_Validation(binned_ell,a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog, f_phi_universe[i],
+    mockdata = Cell_CuGal_Validation(binned_ell,a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog, f_phi_universe,
                         cosmo_universe, z , Binned_distribution_source,Binned_distribution_lens,\
                         Bias_distribution_fiducial,P_delta2D_GR_nl_ecosmog, Bk_CuGal_cosmo_funct_ECOSMOG, tracer1_type="k", tracer2_type="g")
 
@@ -456,7 +456,7 @@ if config['data']['type'] == 2:
     binned_ell = bin_ell_deldel(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata,Binned_distribution_lens)
 
     # find C_ell for non-linear matter power spectrum
-    mockdata = Cell_CuGal_Validation(binned_ell,a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog, f_phi_universe[i],
+    mockdata = Cell_CuGal_Validation(binned_ell,a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog, f_phi_universe,
                         cosmo_universe, z , Binned_distribution_source,Binned_distribution_lens,\
                         Bias_distribution_fiducial, P_delta2D_GR_nl_ecosmog, Bk_CuGal_cosmo_funct_ECOSMOG, tracer1_type="g", tracer2_type="g")
 
