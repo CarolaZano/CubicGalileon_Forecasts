@@ -19,7 +19,7 @@ data:
   #Types:
   #     0 -> synthetic data vector from Boost (read B(k,a) from file)
   #     1 -> from Emulator
-  #    2 -> from simulation (read data vector from file)
+  #     2 -> from simulation (read data vector from file)
   # if type = 0, need to specify the following files:
   data_file: './Validation_data/Boost_validation_edges.npy'
   z_k_file: './Validation_data/z_k_validation_edges.txt'

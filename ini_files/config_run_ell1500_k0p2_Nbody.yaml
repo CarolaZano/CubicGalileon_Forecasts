@@ -1,0 +1,48 @@
+specs:
+  #Scale cuts
+  #max_WL ->  lmax cut in z-bins - same for all
+  # max_GC -> kmax cut in z-bins - same for all
+  scale_cuts:
+    max_WL: 1500
+    max_GC: 0.2 # h/Mpc
+    cosmo: # for transformation from k_eff to ell
+      'Omega_m': 0.31966
+      'w0': -1.
+      'wa': 0.
+
+  #Survey info
+  survey_info: 'LSST_Y1' # for now only one allowed
+
+
+data:
+  type: 0
+  #Types:
+  #     0 -> synthetic data vector from Boost (read B(k,a) from file)
+  #     1 -> from Emulator
+  #     2 -> from simulation (read data vector from file)
+  # if type = 0, need to specify the following files:
+  data_file: None
+  z_k_file: None
+  cosmo_file: None
+  # if type = 2, need to specify the following files:
+  scale_factors: [0.333333333333, 0.34782608695, 0.36363636363, 0.38095238095, 0.4, 
+                  0.42105263157, 0.44444444444, 0.47058823529, 0.5, 0.53333333333,
+                  0.57142857142, 0.61538461538, 0.66666666666, 0.72727272727, 0.8, 0.88888888888, 1.0]
+  name_format: "Validation_data/CG_Baojiu_Powmes/Phase1/PK_CG_Phase1_S{}.dat"
+  Lbox: 1024.0 # Mpc/h - box size of the simulation
+  Npart: 1024 # number of particles^1/3 in the simulation
+  # and the specific simulation for the run
+  index: 45
+  # if type = 1 or 2, need to specify the following file (that gives the parameters of the data vector):
+  params: ./ini_files/params_ecosmog.yaml
+
+output: 
+  chain_name: mcmc_cG_3x2pt_LSSTY1_validation_edges_45_ell1500_k0p2
+sampler: 
+  mcmc:
+    verbose: True
+    n_eff: 5000
+    n_live: 1000
+    resume: True
+    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_validation_edges_45_ell1500_k0p2
+    

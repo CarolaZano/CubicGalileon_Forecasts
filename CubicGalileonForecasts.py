@@ -366,6 +366,110 @@ elif config['data']['type'] == 1:
 
     del mockdata
 
+# use ecosmog sim, hardcoded for now, to get the boost for the simulated data vector
+if config['data']['type'] == 2:
+    print("Reading params file to get the parameters of the data vector...")
+    params_filename = config['data']['params']
+    with open(params_filename, 'r') as f:
+        params = yaml.safe_load(f)
+    Omega_m = params['Omega_m']
+    Omega_b = params['Omega_b']
+    h = params['h']
+    n_s = params['n_s']
+    A_s = params['A_s']
+    f_phi_universe = params['f_phi']
+
+    cosmo_universe =  ccl.Cosmology(Omega_c = Omega_m - Omega_b,
+                                 Omega_b = Omega_b,
+                                 h = h,
+                                 n_s = n_s,
+                                 A_s = A_s)
+    cosmo_universe_linear = ccl.Cosmology(Omega_c = Omega_m - Omega_b, 
+                            Omega_b = Omega_b,
+                            h = h,
+                            n_s = n_s,
+                            A_s = A_s,
+                            matter_power_spectrum='linear')
+    
+    scale_factors = config['data']['scale_factors']
+
+    Bk_vals_sim = []
+    idx = 1
+    for i in range(idx, len(scale_factors)+1):
+        # format i so that it is 01, 02, etc.
+        i_label = str(i+1).zfill(2)
+        name_format = config['data']['name_format']
+        Npart = config['data']['Npart']
+        Lbox = config['data']['Lbox']
+        Pk_ecosmog2_phase1 = load_powmes_pk(name_format.format(i_label),Lbox, Npart**3)
+        Pk_ecosmog2_phase2 = load_powmes_pk(name_format.format(i_label),Lbox, Npart**3)
+
+        print(i_label, scale_factors[i - 1])
+        
+        Pk_GR_ccl = ccl.nonlin_matter_power(cosmo_universe, Pk_ecosmog2_phase1[0]*cosmo_universe["h"], a=scale_factors[i - 1])*(cosmo_universe["h"]**3)
+
+        Bk_vals_sim.append((Pk_ecosmog2_phase1[1]+Pk_ecosmog2_phase2[1])/(2*Pk_GR_ccl))
+
+    k_ECOSMOG = Pk_ecosmog2_phase1[0]
+    Bk_vals_sim = np.array(Bk_vals_sim)
+    # make Bk_CuGal_cosmo_funct_ECOSMOG so that for k < 3e-2, it is equal to Bk_vals_sim[k=3e-2]
+    k_ECOSMOG_cut = k_ECOSMOG[k_ECOSMOG > 3e-2]
+    Bk_vals_sim_cut = Bk_vals_sim[:, k_ECOSMOG > 3e-2]
+
+    Bk_CuGal_cosmo_funct_ECOSMOG =  scipy.interpolate.RectBivariateSpline(1/(np.array(scale_factors[idx-1:][::-1])) - 1, k_ECOSMOG_cut, Bk_vals_sim_cut[::-1])
+
+    a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog = CuGal_initialize(f_phi_universe[i], cosmo_universe)
+
+    P_delta2D_GR_lin_ecosmog = Get_Pk2D_obj_kk_GR_lin(cosmo_universe)
+    P_delta2D_GR_nl_ecosmog = Get_Pk2D_obj_kk_GR_nl(cosmo_universe)
+
+
+    """Get mock C(ell) data - N-body"""
+
+    ## LENSING - LENSING
+
+    binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
+
+    # find C_ell for non-linear matter power spectrum
+    mockdata = Cell_CuGal_Validation(binned_ell,a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog, f_phi_universe[i], cosmo_universe, 
+                        z , Binned_distribution_source,Binned_distribution_lens,
+                        Bias_distribution_fiducial, P_delta2D_GR_nl_ecosmog, Bk_CuGal_cosmo_funct_ECOSMOG, tracer1_type="k", tracer2_type="k")
+
+    ell_kk_mockdata = mockdata[0]
+    D_kk_mockdata = mockdata[1]
+    D_kk_mockdata = (np.array(D_kk_mockdata)).flatten()
+
+    ## CLUSTERING - LENSING
+
+    binned_ell = bin_ell_delk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata,Binned_distribution_source,Binned_distribution_lens)
+
+    # find C_ell for non-linear matter power spectrum
+    mockdata = Cell_CuGal_Validation(binned_ell,a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog, f_phi_universe[i],
+                        cosmo_universe, z , Binned_distribution_source,Binned_distribution_lens,\
+                        Bias_distribution_fiducial,P_delta2D_GR_nl_ecosmog, Bk_CuGal_cosmo_funct_ECOSMOG, tracer1_type="k", tracer2_type="g")
+
+    ell_delk_mockdata = mockdata[0]
+    D_delk_mockdata = mockdata[1]
+    D_delk_mockdata = (np.array(D_delk_mockdata)).flatten()
+
+    ## CLUSTERING - CLUSTERING
+    binned_ell = bin_ell_deldel(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata,Binned_distribution_lens)
+
+    # find C_ell for non-linear matter power spectrum
+    mockdata = Cell_CuGal_Validation(binned_ell,a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog, f_phi_universe[i],
+                        cosmo_universe, z , Binned_distribution_source,Binned_distribution_lens,\
+                        Bias_distribution_fiducial, P_delta2D_GR_nl_ecosmog, Bk_CuGal_cosmo_funct_ECOSMOG, tracer1_type="g", tracer2_type="g")
+
+    ell_deldel_mockdata = mockdata[0]
+    D_deldel_mockdata = mockdata[1]
+    D_deldel_mockdata = (np.array(D_deldel_mockdata)).flatten()
+
+
+    ell_mockdata = np.append(np.append(ell_kk_mockdata, ell_delk_mockdata), ell_deldel_mockdata)
+    D_mockdata = np.append(np.append(D_kk_mockdata, D_delk_mockdata), D_deldel_mockdata)
+
+    del mockdata
+
 else:
     raise ValueError("Invalid data type specified in config file. Must be 0 or 1.")
 
@@ -378,7 +482,7 @@ else:
 
 ########## Get full covariance (gauss only) ##########
 
-covfile = np.genfromtxt("/global/u2/c/carolazn/CuGal_Emu_project_mcmc/Y1_3x2pt_clusterN_clusterWL_cov")
+covfile = np.genfromtxt("Y1_3x2pt_clusterN_clusterWL_cov")
 print(covfile.shape)
 
 shear_SRD = np.zeros((705,705))
@@ -457,7 +561,7 @@ def log_likelihood(theta_dict, Data, invcovmat):
 
 
 #### Get Planck priors #####
-sampler_Planck_arr = np.load("/global/homes/c/carolazn/CuGal_Emu_project_mcmc/Prior_Planck_arr.npy")
+sampler_Planck_arr = np.load("Prior_Planck_arr.npy")
 mu_prior = [cosmo_universe['n_s'], cosmo_universe["Omega_b"]*cosmo_universe["h"]**2]
 cov_prior = np.cov(sampler_Planck_arr.T)
 
@@ -521,7 +625,7 @@ nwalkers, ndim = pos.shape
 print(nwalkers, ndim)
 """
 # Create the output directory and set up the HDF5 backend
-mcmc_dir = "/global/homes/c/carolazn/CuGal_Emu_project_mcmc/mcmc"
+mcmc_dir = "mcmc"
 #filename = mcmc_dir + "/ " + config['output']['chain_name'] + ".h5"
 #backend = emcee.backends.HDFBackend(filename)
 
