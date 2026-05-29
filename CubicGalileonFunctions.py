@@ -217,7 +217,7 @@ def run_Horndeski_simulation(f_phi, cosmo):
     # Read the parameters from the ini files
     read_out_dict = {'model_name': 'horndeski_model', 
                      'cosmo_name': 'run_X', 
-                     'output_directory': '/global/homes/c/carolazn/CuGal_Emu_project_mcmc/HiCOLA_background/Output_validation', 
+                     'output_directory': './HiCOLA_background/Output_validation', 
                      'K': sym.Symbol('X')*sym.Symbol('k_1'), 
                      'G3': sym.Symbol('X')*sym.Symbol('g_31'), 
                      'G4': 0.500000000000000, 
