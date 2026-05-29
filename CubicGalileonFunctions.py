@@ -89,6 +89,8 @@ Bk_all, Bk_all_smooth, k_all, z_all = load_boost_data()
 Bk_lin_all, _, _ = load_boost_data_lin()
 p_all = load_params()
 
+print(p_all.shape, flush=True)
+
 ## Data prep
 z_index = 1
 
@@ -104,12 +106,14 @@ target_vals = Bk_all_val[:, z_index, :]
 input_params = load_params(LIBRARY_PARAM_FILE_VAL)
 
 train_indices = [i for i in np.arange(49)] # if i not in test_indices]
+print(train_indices, flush=True)
 
 p_all_train = p_all[train_indices]
 y_vals_train = Bk_all[:, z_index, :][train_indices]
 
 sepia_data = sepia_data_format(p_all_train, y_vals_train, y_ind)
-model_filename = '/global/homes/c/carolazn/CubicGalileonEmu/CubicGalileonEmu/model/multivariate_model_z_index' + str(z_index) 
+print(sepia_data)
+model_filename = '../CubicGalileonEmu/CubicGalileonEmu/model/multivariate_model_z_index' + str(z_index) 
 
 #sepia_model = do_pca(sepia_data, exp_variance=0.95)
 #sepia_model = do_gp_train(sepia_model, model_filename)
@@ -117,14 +121,13 @@ model_filename = '/global/homes/c/carolazn/CubicGalileonEmu/CubicGalileonEmu/mod
 
 if if_train_all:
     
-    do_gp_train_multiple(model_dir='/global/homes/c/carolazn/CubicGalileonEmu/CubicGalileonEmu/model/', 
+    do_gp_train_multiple(model_dir='../CubicGalileonEmu/CubicGalileonEmu/model/', 
                         p_train_all = p_all[train_indices],
                         y_vals_all = Bk_all_smooth[train_indices],
                         y_ind_all = k_all,
                         z_index_range=range(49))
 
-
-sepia_model_list, sepia_data_list = load_model_multiple(model_dir='/global/homes/c/carolazn/CubicGalileonEmu/CubicGalileonEmu/model/', 
+sepia_model_list, sepia_data_list = load_model_multiple(model_dir='../CubicGalileonEmu/CubicGalileonEmu/model/', 
                                         p_train_all=p_all[train_indices],
                                         y_vals_all=Bk_all_smooth[train_indices],
                                         y_ind_all=k_all,
@@ -334,6 +337,49 @@ def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
     
     return Pk
 
+# NL matter power spectra in cG
+def B_k_NL_CuGal(f_phi, cosmo, k, a):
+    """
+    input k (array) -> wavevector, units 1/Mpc
+    input a (float or array) -> scale factor (1/(1+z))
+    input cosmo (cosmology object) -> Cosmology object from CCL
+    
+    output Pk_fR (array) -> Nonlinear matter power spectrum for Hu-Sawicki fR gravity, units (Mpc)^3
+    """
+    if isinstance(a, (float, int)):  # Single scale factor case
+        input_params_and_redshift = np.append(
+            np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
+            1.0 / a - 1.0
+        )
+        bk_target, err_target = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
+        interp_func = scipy.interpolate.interp1d(k_all * cosmo["h"], bk_target.flatten(), kind='linear', fill_value="extrapolate")
+        pkratio_CuGal = interp_func(k)
+        
+    else:
+        bk_target = []
+        z_range = 1.0 / a - 1.0  # Array of redshift values
+
+        # Loop over each redshift value
+        for z_val in z_range:
+            input_params_and_redshift = np.append(
+                np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
+                z_val
+            )
+            bk_target_i, _ = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
+            bk_target.append(bk_target_i.flatten()) 
+    
+        # Convert list to array with shape (len(a), len(k_all))
+        bk_target = np.array(bk_target)
+
+        # Interpolating each row in bk_target over k
+        pkratio_CuGal = np.array([
+            scipy.interpolate.interp1d(k_all * cosmo["h"], bk_row, kind='linear', fill_value="extrapolate")(k) 
+            for bk_row in bk_target
+        ])
+    
+
+    
+    return pkratio_CuGal
 
 
 """Linear matter power spectra CuGal"""
@@ -644,88 +690,11 @@ def comoving_radial_dist_CuGal(a_arr, UE_arr, cosmo, a_array):
     return np.array(results)
 
 
-def Cell_CuGal(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi, cosmo_GR, z, Binned_distribution_s, Binned_distribution_l,Bias_distribution,
-         GR_pk2D_obj, tracer1_type="k", 
-         tracer2_type="k"):
-    # Define the scale factor array
-    a_array = np.logspace(np.log10(1/14), 0, 50)
-    
-    # Compute chi using the comoving radial distance function
-    chi_array = comoving_radial_dist_CuGal(a_arr, UE_arr, cosmo_GR, a_array)
-    
-    # Compute h_over_h0 using the Hubble expansion rate function
-    h_over_h0_array = E_CuGal(a_arr, UE_arr, a_array)
-    
-    # Create the background dictionary
-    background_dict = {
-        'a': a_array,
-        'chi': chi_array,
-        'h_over_h0': h_over_h0_array
-    }
-
-    growthfact_array = growthfactor_CuGal(a_arr, UE_arr, coupling_factor_arr, f_phi, cosmo_GR, a_array)
-    growthrate_array = growthrate_CuGal(a_arr, UE_arr, coupling_factor_arr, f_phi, cosmo_GR, a_array)
-    
-    # Create the growth dictionary
-    growth_dict = {
-        'a': a_array,
-        'growth_factor': growthfact_array,
-        'growth_rate': growthrate_array
-    }
-    k_array = np.logspace(-4,3,100)
-
-    """
-    # Split a_array based on the condition a < 1/12
-    a_threshold = 1/12
-    a_GR = a_array[a_array < a_threshold]
-    a_MG = a_array[a_array >= a_threshold]
-
-    # Compute P(k, a) for a < 1/12 using P_k_GR
-    Pk_GR_array = np.array([ccl.power.nonlin_power(cosmo_GR, k_array, a) for a in a_GR])
-    """
-    # Compute P(k, a) for a >= 1/12 using P_k_NL_CuGal
-    Pk_NL_array = P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, a_array) #np.array([P_k_NL_CuGal(f_phi,cosmo_GR, k_array, a) for a in a_array])
-
-    # Combine the results back into a single array
-    #Pk_NL_array = np.vstack((Pk_GR_array, Pk_NL_CuGal_array))
-
-    Pk_NL_dict = {
-        'a': a_array,
-        'k': k_array,
-        'delta_matter:delta_matter': Pk_NL_array,
-    }
-    
-    cosmo = ccl.cosmology.CosmologyCalculator(Omega_c = cosmo_GR["Omega_c"],
-                                              Omega_b = cosmo_GR["Omega_b"],
-                                              h = cosmo_GR["h"],
-                                              n_s = cosmo_GR["n_s"],
-                                              A_s = cosmo_GR["A_s"],
-                                              background = background_dict,
-                                              growth = growth_dict,
-                                              pk_nonlin = Pk_NL_dict)
-    
-    ops = {
-        ("k" , "k"): C_ell_arr_kk_GR,
-        ("k" , "g"): C_ell_arr_delk_GR, 
-        ("g" , "k"): C_ell_arr_delk_GR,
-        ("g" , "g"): C_ell_arr_deldel_GR
-    }
-
-    def invalid_op2():
-        raise ValueError('invalid tracer selected.')
-    ########## Find Cell ##########
-
-    C_ell_array_funct = ops.get((tracer1_type, tracer2_type), invalid_op2)
-    C_ell_array = C_ell_array_funct(ell_binned, cosmo, z, Binned_distribution_s, Binned_distribution_l,Bias_distribution)
-
-    return np.array(list(itertools.chain(*ell_binned))), C_ell_array
-
-
 def Cell_CuGal(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi, cosmo_GR, z, 
                Binned_distribution_s, Binned_distribution_l, Bias_distribution,
                GR_pk2D_obj, tracer1_type="k", tracer2_type="k"):
     # Define the scale factor array
-    a_array = np.logspace(np.log10(1/14), 0, 50)
+    a_array = np.logspace(np.log10(1/14), 0, 100)
     
     # Compute chi using the comoving radial distance function
     chi_array = comoving_radial_dist_CuGal(a_arr, UE_arr, cosmo_GR, a_array)
@@ -750,10 +719,10 @@ def Cell_CuGal(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi, cosmo_GR, 
         'growth_rate': growthrate_array
     }
 
-    k_array = np.logspace(-4, 3, 100)
+    k_array = np.logspace(-4, 3, 500)
     
     # Compute P(k, a) separately for different tracer combinations
-    mu_cugal_val = np.repeat(mu_CuGal(a_arr, coupling_factor_arr, a_array)[:, np.newaxis], 100, axis=1)
+    mu_cugal_val = np.repeat(mu_CuGal(a_arr, coupling_factor_arr, a_array)[:, np.newaxis], len(k_array), axis=1)
     Pk_NL_kk = mu_cugal_val**2 * P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, a_array)
     Pk_NL_kg = mu_cugal_val * P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, a_array)
     Pk_NL_gg = P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, a_array)
@@ -813,7 +782,7 @@ def Cell_CuGal_Validation(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi,
                Binned_distribution_s, Binned_distribution_l, Bias_distribution, 
                GR_pk2D_obj, Bk_CuGal_cosmo_funct, tracer1_type="k", tracer2_type="k"):
     # Define the scale factor array
-    a_array = np.logspace(np.log10(1/14), 0, 50)
+    a_array = np.logspace(np.log10(1/14), 0, 100)
     
     # Compute chi using the comoving radial distance function
     chi_array = comoving_radial_dist_CuGal(a_arr, UE_arr, cosmo_GR, a_array)
@@ -838,15 +807,16 @@ def Cell_CuGal_Validation(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi,
         'growth_rate': growthrate_array
     }
 
-    k_array = np.logspace(-4, 3, 100)
+    k_array = np.logspace(-4, 3, 500)
 
     Pk_ccl = GR_pk2D_obj.__call__(k_array, a=a_array)
 
     # Compute P(k, a) separately for different tracer combinations
-    mu_cugal_val = np.repeat(mu_CuGal(a_arr, coupling_factor_arr, a_array)[:, np.newaxis], 100, axis=1)
-    Pk_NL_kk = mu_cugal_val**2 * Bk_CuGal_cosmo_funct(1/a_array[::-1] - 1.0, k_array)[::-1, :] * Pk_ccl
-    Pk_NL_kg = mu_cugal_val * Bk_CuGal_cosmo_funct(1/a_array[::-1] - 1.0, k_array)[::-1, :] * Pk_ccl
-    Pk_NL_gg = Bk_CuGal_cosmo_funct(1/a_array[::-1] - 1.0, k_array)[::-1, :] * Pk_ccl
+    mu_cugal_val = np.repeat(mu_CuGal(a_arr, coupling_factor_arr, a_array)[:, np.newaxis], len(k_array), axis=1)
+    k_array_hMpc = k_array / cosmo_GR["h"]
+    Pk_NL_kk = mu_cugal_val**2 * Bk_CuGal_cosmo_funct(1/a_array[::-1] - 1.0, k_array_hMpc)[::-1, :] * Pk_ccl
+    Pk_NL_kg = mu_cugal_val * Bk_CuGal_cosmo_funct(1/a_array[::-1] - 1.0, k_array_hMpc)[::-1, :] * Pk_ccl
+    Pk_NL_gg = Bk_CuGal_cosmo_funct(1/a_array[::-1] - 1.0, k_array_hMpc)[::-1, :] * Pk_ccl
 
     # Dictionary to store the correct P(k, a) choice
     Pk_NL_dict_map = {
@@ -1029,3 +999,53 @@ def scale_cuts(cosmo, ell, dvec_full, dvec_shear, cov_full, k_max, ell_cut):
 
     print('ex_inds=', ex_inds)
     return ex_inds
+
+def load_powmes_pk(fname, boxsize, npart):
+    """
+    Read POWMES power spectrum and convert to standard cosmological units.
+
+    Parameters
+    ----------
+    fname : str
+        POWMES output file
+    boxsize : float
+        Simulation box size [Mpc/h]
+    npart : int
+        Total number of particles
+
+    Returns
+    -------
+    k : ndarray
+        Wavenumber [h/Mpc]
+
+    pk : ndarray
+        Physical matter power spectrum [(Mpc/h)^3]
+
+    err : ndarray
+        Relative statistical error
+    """
+
+    data = np.loadtxt(fname)
+    # remove first row as it contains zeros
+    data = data[1:]
+
+    n = data[:, 0]          # integer wave number
+    nmodes = data[:, 1]
+    pk_rough = data[:, 3]   # debiased rough spectrum
+    W = data[:, 4]          # shot-noise factor
+    err = data[:, 5]
+
+    # Fundamental mode
+    kf = 2.0 * np.pi / boxsize
+
+    # Physical k
+    k = n * kf
+
+    # Remove shot noise
+    pk = pk_rough - W / npart
+    
+    # Convert to physical units
+    volume = boxsize**3
+    pk *= volume
+
+    return k, pk, err
