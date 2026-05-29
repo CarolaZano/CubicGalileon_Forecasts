@@ -948,6 +948,58 @@ def ell_arrayfromlist(list):
     return list_new
 
 
+def load_powmes_pk(fname, boxsize, npart):
+    """
+    Read POWMES power spectrum and convert to standard cosmological units.
+
+    Parameters
+    ----------
+    fname : str
+        POWMES output file
+    boxsize : float
+        Simulation box size [Mpc/h]
+    npart : int
+        Total number of particles
+
+    Returns
+    -------
+    k : ndarray
+        Wavenumber [h/Mpc]
+
+    pk : ndarray
+        Physical matter power spectrum [(Mpc/h)^3]
+
+    err : ndarray
+        Relative statistical error
+    """
+
+    data = np.loadtxt(fname)
+    # remove first row as it contains zeros
+    data = data[1:]
+
+    n = data[:, 0]          # integer wave number
+    nmodes = data[:, 1]
+    pk_rough = data[:, 3]   # debiased rough spectrum
+    W = data[:, 4]          # shot-noise factor
+    err = data[:, 5]
+
+    # Fundamental mode
+    kf = 2.0 * np.pi / boxsize
+
+    # Physical k
+    k = n * kf
+
+    # Remove shot noise
+    pk = pk_rough - W / npart
+    
+    # Convert to physical units
+    volume = boxsize**3
+    pk *= volume
+
+    return k, pk, err
+
+
+
 def scale_cuts(cosmo, ell, dvec_full, dvec_shear, cov_full, k_max, ell_cut):
     """ 
     Modified function from Danielle.
@@ -1000,52 +1052,264 @@ def scale_cuts(cosmo, ell, dvec_full, dvec_shear, cov_full, k_max, ell_cut):
     print('ex_inds=', ex_inds)
     return ex_inds
 
-def load_powmes_pk(fname, boxsize, npart):
-    """
-    Read POWMES power spectrum and convert to standard cosmological units.
+P_k_arrays_OWLSAGN = np.loadtxt("./Pk_OWLS_AGN.txt", skiprows=1)
+P_k_arrays_DMO = np.loadtxt("./Pk_OWLS_DMO.txt", skiprows=1)
 
-    Parameters
-    ----------
-    fname : str
-        POWMES output file
-    boxsize : float
-        Simulation box size [Mpc/h]
-    npart : int
-        Total number of particles
+z_OWLSAGN_mesh = P_k_arrays_OWLSAGN.T[0]
+k_OWLSAGN_mesh = P_k_arrays_OWLSAGN.T[1]
+z_OWLSAGN = np.unique(z_OWLSAGN_mesh)
+k_OWLSAGN = np.unique(k_OWLSAGN_mesh)
 
-    Returns
-    -------
-    k : ndarray
-        Wavenumber [h/Mpc]
+Pk_OWLSAGN_mesh = P_k_arrays_OWLSAGN.T[2].reshape(len(z_OWLSAGN),len(k_OWLSAGN))
+Pk_OWLSDMO_mesh = P_k_arrays_DMO.T[2].reshape(len(z_OWLSAGN),len(k_OWLSAGN))
 
-    pk : ndarray
-        Physical matter power spectrum [(Mpc/h)^3]
+BaryonBoost_OWLSAGN = Pk_OWLSAGN_mesh/Pk_OWLSDMO_mesh
+interp_Bk_OWLSAGN = scipy.interpolate.RegularGridInterpolator((k_OWLSAGN, z_OWLSAGN), BaryonBoost_OWLSAGN.T,bounds_error=False, fill_value=1.0)
 
-    err : ndarray
-        Relative statistical error
-    """
 
-    data = np.loadtxt(fname)
-    # remove first row as it contains zeros
-    data = data[1:]
+# A: Function for cosmic shear angular power spectrum (lensing-lensing C_ell) from a given P_delta2D_S
+def C_ell_arr_kk(P_delta2D_S_funct, ell_binned, cosmo, z, Binned_distribution_s, Binned_distribution_l,Bias_distribution):
+    C_ell_array = []
+    n_zbins = int(((len(Binned_distribution_s)+1)*len(Binned_distribution_s))/2)
+    # how far along z binning we are
+    idx = 0
+    # at what z bin we start calculating Cell
+    start_idx = n_zbins - len(ell_binned)
 
-    n = data[:, 0]          # integer wave number
-    nmodes = data[:, 1]
-    pk_rough = data[:, 3]   # debiased rough spectrum
-    W = data[:, 4]          # shot-noise factor
-    err = data[:, 5]
+    for j in range(len(Binned_distribution_s)):
+        tracer1 = ccl.WeakLensingTracer(cosmo, dndz=(z, Binned_distribution_s[j]))
+        for k in range(len(Binned_distribution_s)):
+            if k >= j:
+                if start_idx <= idx:
+                    tracer2 = ccl.WeakLensingTracer(cosmo, dndz=(z, Binned_distribution_s[k]))
+                    C_ell = ccl.angular_cl(cosmo, tracer1, tracer2, ell_binned[idx - start_idx], p_of_k_a=P_delta2D_S_funct)
+                    C_ell_array.append([C_ell])
+                    idx += 1
+                else:
+                    idx += 1
+    return C_ell_array
 
-    # Fundamental mode
-    kf = 2.0 * np.pi / boxsize
-
-    # Physical k
-    k = n * kf
-
-    # Remove shot noise
-    pk = pk_rough - W / npart
+# B: Function for galaxy-galaxy lensing angular power spectrum (clustering-lensing C_ell) from a given P_delta2D_S
+def C_ell_arr_delk(P_delta2D_S_funct, ell_binned, cosmo, z, Binned_distribution_s, Binned_distribution_l,Bias_distribution):
+    C_ell_array = []
     
-    # Convert to physical units
-    volume = boxsize**3
-    pk *= volume
+    n_zbins = 0
+    for j in range(len(Binned_distribution_l)):
+        for k in range(len(Binned_distribution_s)):
+            if k - 1 > j or (k == 4 and j == 3):
+                n_zbins += 1
+                
+    # how far along z binning we are
+    idx = 0
+    # at what z bin we start calculating Cell
+    start_idx = n_zbins - len(ell_binned)
 
-    return k, pk, err
+    for j in range(len(Binned_distribution_l)):
+        tracer1 = ccl.NumberCountsTracer(cosmo, dndz=(z, Binned_distribution_l[j]), bias=(z, Bias_distribution[j]), has_rsd=False)
+        for k in range(len(Binned_distribution_s)):
+            if k - 1 > j or (k == 4 and j == 3):
+                if start_idx <= idx:
+                    tracer2 = ccl.WeakLensingTracer(cosmo, dndz=(z, Binned_distribution_s[k]))
+                    C_ell = ccl.angular_cl(cosmo, tracer1, tracer2, ell_binned[idx - start_idx], p_of_k_a=P_delta2D_S_funct)
+                    C_ell_array.append([C_ell])
+                    idx += 1
+                else:
+                    idx += 1
+    return C_ell_array
+
+# C: Function for galaxy-galaxy clustering angular power spectrum (clustering-clustering C_ell) from a given P_delta2D_S
+def C_ell_arr_deldel(P_delta2D_S_funct, ell_binned, cosmo, z, Binned_distribution_s, Binned_distribution_l,Bias_distribution):
+    C_ell_array = []
+    n_zbins = len(Binned_distribution_l)
+    # how far along z binning we are
+    idx = 0
+    # at what z bin we start calculating Cell
+    start_idx = n_zbins - len(ell_binned)
+
+    for j in range(len(Binned_distribution_l)):
+        tracer1 = ccl.NumberCountsTracer(cosmo, dndz=(z, Binned_distribution_l[j]), bias=(z, Bias_distribution[j]), has_rsd=False)
+        for k in range(len(Binned_distribution_l)):
+            if k == j:
+                if start_idx <= idx:
+                    tracer2 = ccl.NumberCountsTracer(cosmo, dndz=(z, Binned_distribution_l[k]), bias=(z, Bias_distribution[k]), has_rsd=False)
+                    C_ell = ccl.angular_cl(cosmo, tracer1, tracer2, ell_binned[idx - start_idx], p_of_k_a=P_delta2D_S_funct)
+                    C_ell_array.append([C_ell])
+                    idx += 1
+                else:
+                    idx += 1
+    return C_ell_array
+
+def Cell(ell_binned, cosmo, z, Binned_distribution_s, Binned_distribution_l,Bias_distribution,P_delta2D_S,
+         tracer1_type="k", 
+         tracer2_type="k"):
+    """
+    Finds C^{i,j}(ell) for {i,j} redshift bins.
+    tracer_type = "k", "g"
+    linear = True, False
+    gravity theory = "GR", "nDGP", "f(R)", "muSigma"
+    if tracer1_type = "k" and tracer2_type = "k", shape-shape angular power spectrum
+    if tracer1_type = "k" and tracer2_type = "g", galaxy-galaxy lensing angular power spectrum
+    if tracer1_type = "g" and tracer2_type = "g", pos-pos angular power spectrum
+    if linear=True, use linear matter power spectrum to compute the angular one, otherwise use the non-linear
+    input:
+        ell_binned: array of ell bins for the full C{ij}(ell) range (for all i and j), with scale cuts included
+        cosmo: ccl cosmology object
+        redshift z: numpy.array with dim:N
+        Binned_distribution_s: numpy.array with dim:(N,M) (M = no. source z bins)
+        Binned_distribution_l: numpy.array with dim:(N,L) (L = no. lens z bins)
+        Bias_distribution: numpy.array with dim:(N,L) (galaxy bias)
+        pk_F: function (cosmo, MGParams, k,a) for k (in 1/Mpc), returns matter power spectrum (in Mpc^3)
+        MGParams: 
+    returns:
+        ell bins: numpy.array (dim = dim C_ell)
+        C_ell: numpy.array
+    """
+
+    ops = {
+        ("k" , "k"): C_ell_arr_kk,
+        ("k" , "g"): C_ell_arr_delk, 
+        ("g" , "k"): C_ell_arr_delk,
+        ("g" , "g"): C_ell_arr_deldel
+    }
+
+    def invalid_op2():
+        raise ValueError('invalid tracer selected.')
+    ########## Find Cell ##########
+
+    C_ell_array_funct = ops.get((tracer1_type, tracer2_type), invalid_op2)
+    C_ell_array = C_ell_array_funct(P_delta2D_S, ell_binned, cosmo, z, Binned_distribution_s, Binned_distribution_l,Bias_distribution)
+
+    return np.array(list(itertools.chain(*ell_binned))), C_ell_array
+
+
+"""Define functions to apply baryonic cuts"""
+def Get_Pk2D_obj_OWLSAGN(cosmo,linear=False,gravity_model="GR"):
+
+    ########### Functions for non-linear matter power spectrum multiplied by Sigma**2 ###########
+    def pk_funcSigma2_GR_NL(k, a):
+        
+        if isinstance(a, (float, int)):  # Single scale factor case
+            pk = ccl.nonlin_matter_power(cosmo, k=k, a=a) * interp_Bk_OWLSAGN(np.array([k, np.ones(len(k))*(1.0/a - 1.0)]).T)
+        else:
+            k_mesh, z_mesh = np.meshgrid(k,1.0/a - 1.0)
+
+            # Calculate power spectra for different k ranges
+            pk = ccl.nonlin_matter_power(cosmo, k=k, a=a) * interp_Bk_OWLSAGN(k_mesh, z_mesh)
+                
+        return pk
+       
+    ########### Functions for linear matter power spectrum multiplied by Sigma**2 ###########
+    def pk_funcSigma2_GR_lin(k, a):
+        
+        if isinstance(a, (float, int)):  # Single scale factor case
+            pk = ccl.linear_matter_power(cosmo, k=k, a=a) * interp_Bk_OWLSAGN(np.array([k, np.ones(len(k))*(1.0/a - 1.0)]).T)
+        else:
+            k_mesh, z_mesh = np.meshgrid(k,1.0/a - 1.0)
+
+            # Calculate power spectra for different k ranges
+            pk = ccl.linear_matter_power(cosmo, k=k, a=a) * interp_Bk_OWLSAGN(k_mesh, z_mesh)
+                
+        return pk
+
+    def invalid_op(k, a):
+        raise Exception("Invalid gravity model entered or Linear must be True or False.")
+
+    ops = {
+        ("GR" , False): pk_funcSigma2_GR_NL,
+        ("GR" , True): pk_funcSigma2_GR_lin
+    }
+    
+    ########### Find matter power spectrum multiplied by Sigma**2 ###########
+    pk_funcSigma2 = ops.get((gravity_model, linear), invalid_op)
+
+    return ccl.pk2d.Pk2D.from_function(pkfunc=pk_funcSigma2, is_logp=False)
+
+
+
+def baryonic_scale_cuts(cosmo, ell, dvec_full, dvec_shear, dvec_kmax, cov_full, k_max):
+    """ 
+    Modified function from Danielle.
+    Gets the scales (and vector indices) which are excluded if we
+    are only keeping non-baryonic scales. We define these scales such that 
+    chi^2_{baryonic - DMO) <=1.
+    dvec_full: full data vector from baryonic theory 
+    dvec_shear: shear data vector from baryonic theory 
+    dvec_kmax: shear data vector from DMO theory
+    cov_full: full data covariance, shear components come first
+    k_max in h/Mpc
+    derived    cov: shear data covariance. """
+    
+    # Make a copy of these initial input things before they are changed,
+    # so we can compare and get the indices
+    dvec_full_in = dvec_full; dvec_shear_in = dvec_shear; dvec_kmax_in = dvec_kmax; cov_in = cov_full;
+	
+	#### first cuts - clustering ######
+    
+    # for galaxy-galaxy lensing (size=91) bins=(02 , 03 , 04 , 13 , 14 , 24 , 34)
+    # for galaxy-galaxy (size=65) bins=(00 , 11 , 22 , 33 , 44)
+    
+    
+    delk_z_array = np.array([0.30,0.30,0.30,0.50,0.50,0.70,0.70])
+    deldel_z_array = np.array([0.30,0.50,0.70,0.90,1.10])
+    z_array = np.append(delk_z_array, deldel_z_array)
+    chi = ccl.background.comoving_radial_distance(cosmo, 1/(z_array+1))
+    ellmax = k_max * chi - 0.5
+    
+    starting_index = len(dvec_shear)
+    len_ell_ranges = int((len(cov_full[0]) - len(dvec_shear))/len(z_array))
+    idx_count = 0
+    for j in range(len(z_array)):
+        for i in range(len_ell_ranges):
+            if ell[starting_index + i] >= ellmax[j]:
+                cov_full = np.delete(np.delete(cov_full, starting_index + j*len_ell_ranges + i - idx_count, axis=0), starting_index + j*len_ell_ranges + i - idx_count, axis=1)
+                dvec_full = np.delete(dvec_full, starting_index + j*len_ell_ranges + i - idx_count)
+                idx_count +=1
+    
+    #### second cuts - lensing ######
+    cov = cov_full[:len(dvec_shear), :len(dvec_shear)]
+    
+    while(True):
+		
+        # Get an array of all the individual elements which would go into 
+        # getting chi2
+        #sum_terms = np.zeros((len(dvec_shear), len(dvec_shear)))
+        #for i in range(0,len(dvec_shear)):
+        #    for j in range(0,len(dvec_shear)):
+        #        sum_terms[i,j] = (dvec_shear[i] - dvec_kmax[i]) * inv_cov[i,j] * (dvec_shear[j] - dvec_kmax[j])
+				
+        #print("sum_terms=", sum_terms)
+        #print("chi2=", np.sum(sum_terms))
+        # Check if chi2<=1		
+        
+        # Get the chi2 in the case where you cut each data point
+        # and then actually cut the one that reduces the chi2
+        # the most
+        chi2_temp = np.zeros(len(dvec_shear))
+        for i in range(len(dvec_shear)):
+            delta_dvec = np.delete(dvec_shear, i) - np.delete(dvec_kmax, i)
+            cov_cut = np.delete(np.delete(cov,i, axis=0), i, axis=1)
+            inv_cov_cut = np.linalg.pinv(cov_cut)
+            chi2_temp[i] = np.dot(delta_dvec, np.dot(inv_cov_cut, delta_dvec))
+            #sum_temp[i] = np.sum(np.delete(np.delete(sum_terms, i, axis=0), i, axis=1))
+        print('chi2_temp=', chi2_temp)
+            
+        #Find the index of data point that is cut to produce the smallest chi2:
+        ind_min = np.argmin(chi2_temp)
+            
+        # Cut that element
+        dvec_shear = np.delete(dvec_shear, ind_min)
+        dvec_kmax = np.delete(dvec_kmax, ind_min)
+        cov = np.delete(np.delete(cov, ind_min, axis=0), ind_min, axis=1)
+        dvec_full = np.delete(dvec_full, ind_min)
+
+        if (chi2_temp[ind_min]<=1.0):
+            break
+				
+    # Now we should have the final data vector with the appropriate elements cut.
+    # Use this to get the rp indices and scales we should cut.
+    cov_full[:len(dvec_shear), :len(dvec_shear)] = cov
+    
+    ex_inds = [i for i in range(len(dvec_full_in)) if dvec_full_in[i] not in dvec_full]
+    print('ex_inds=', ex_inds)
+	
+    return ex_inds
