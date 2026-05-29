@@ -1,0 +1,40 @@
+specs:
+  #Scale cuts
+  #max_WL ->  lmax cut in z-bins - same for all
+  # max_GC -> kmax cut in z-bins - same for all
+  scale_cuts:
+    max_WL: 5000
+    max_GC: 0.3 # h/Mpc
+    cosmo: # for transformation from k_eff to ell
+      'Omega_m': 0.31966
+      'w0': -1.
+      'wa': 0.
+
+  #Survey info
+  survey_info: 'LSST_Y1' # for now only one allowed
+
+
+data:
+  type: 0
+  #Types:
+  #     0 -> synthetic data vector from Boost (read B(k,a) from file)
+  #     1 -> from Emulator
+  # if type = 0, need to specify the following files:
+  data_file: './Validation_data/Boost_validation_edges.npy'
+  z_k_file: './Validation_data/z_k_validation_edges.txt'
+  cosmo_file: './Validation_data/cosmo_validation_edges'
+  # and the specific simulation for the run
+  index: 45
+  # if type = 1, need to specify the following file (that gives the parameters of the data vector):
+  params: ./ini_files/params.yaml
+
+output: 
+  chain_name: mcmc_cG_3x2pt_LSSTY1_validation_edges_45_ell5000_k0p3
+sampler: 
+  mcmc:
+    verbose: True
+    n_eff: 5000
+    n_live: 1000
+    resume: True
+    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_validation_edges_45_ell5000_k0p3
+    

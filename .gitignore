@@ -2,3 +2,4 @@
 mcmc/
 .ipynb_checkpoints/
 
+batch_jobs/slurm-*.out
