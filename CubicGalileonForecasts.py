@@ -396,18 +396,22 @@ if config['data']['type'] == 2:
     ## GET THE BOOST INTERPOLATED FROM THE SIMULATED DATA ###
     Bk_vals_sim = []
     idx = 1
+    name_format = config['data']['name_format']
+    name_format_LCDM = config['data']['name_format_LCDM']
+    folder_name = config['data']['folder_name']
+
     for i in range(idx, len(scale_factors)+1):
         # format i so that it is 01, 02, etc.
         i_label = str(i+1).zfill(2)
-        Pk_ecosmog_phase_1 = np.loadtxt(f"Validation_data/CG_Baojiu_Powmes/Phase1/Pk_CG_Phase1_S000{i_label}_pylians.txt").T
+        Pk_ecosmog_phase_1 = np.loadtxt(f"{folder_name}/Phase1/{name_format.format('1', i_label)}").T
         # remove shape noise, BoxSize**3/Nparticles
         Pk_ecosmog_phase_1[1] = Pk_ecosmog_phase_1[1] - (1024**3/1024**3)
-        Pk_ecosmog_phase_2 = np.loadtxt(f"Validation_data/CG_Baojiu_Powmes/Phase2/Pk_CG_Phase2_S000{i_label}_pylians.txt").T
+        Pk_ecosmog_phase_2 = np.loadtxt(f"{folder_name}/Phase2/{name_format.format('2', i_label)}").T
         Pk_ecosmog_phase_2[1] = Pk_ecosmog_phase_2[1] - (1024**3/1024**3)
 
-        Pk_LCDM_ecosmog_phase_1 = np.loadtxt(f"Validation_data/CG_Baojiu_Powmes/LCDMPhase1/Pk_LCDM_Phase1_S000{i_label}_pylians.txt").T
+        Pk_LCDM_ecosmog_phase_1 = np.loadtxt(f"{folder_name}/LCDMPhase1/{name_format_LCDM.format('1', i_label)}").T
         Pk_LCDM_ecosmog_phase_1[1] = Pk_LCDM_ecosmog_phase_1[1] - (1024**3/1024**3)
-        Pk_LCDM_ecosmog_phase_2 = np.loadtxt(f"Validation_data/CG_Baojiu_Powmes/LCDMPhase2/Pk_LCDM_Phase2_S000{i_label}_pylians.txt").T
+        Pk_LCDM_ecosmog_phase_2 = np.loadtxt(f"{folder_name}/LCDMPhase2/{name_format_LCDM.format('2', i_label)}").T
         Pk_LCDM_ecosmog_phase_2[1] = Pk_LCDM_ecosmog_phase_2[1] - (1024**3/1024**3)
 
         Bk_vals_sim.append((Pk_ecosmog_phase_1[1]+Pk_ecosmog_phase_2[1])/(Pk_LCDM_ecosmog_phase_1[1]+Pk_LCDM_ecosmog_phase_2[1]))
