@@ -74,7 +74,7 @@ from HiCOLA.Frontend import expression_builder as eb
 import HiCOLA.Frontend.numerical_solver as ns
 from HiCOLA.Frontend.read_parameters import read_in_parameters
 import sympy as sym
-
+from scipy.signal import savgol_filter
 
 # Cubic Galileon emu and background
 from CubicGalileonEmu.load import *
@@ -393,30 +393,75 @@ if config['data']['type'] == 2:
     
     scale_factors = config['data']['scale_factors']
 
+    ## GET THE BOOST INTERPOLATED FROM THE SIMULATED DATA ###
     Bk_vals_sim = []
     idx = 1
     for i in range(idx, len(scale_factors)+1):
         # format i so that it is 01, 02, etc.
         i_label = str(i+1).zfill(2)
-        name_format = config['data']['name_format']
-        Npart = config['data']['Npart']
-        Lbox = config['data']['Lbox']
-        Pk_ecosmog2_phase1 = load_powmes_pk(name_format.format(i_label),Lbox, Npart**3)
-        Pk_ecosmog2_phase2 = load_powmes_pk(name_format.format(i_label),Lbox, Npart**3)
+        Pk_ecosmog_phase_1 = np.loadtxt(f"Validation_data/CG_Baojiu_Powmes/Phase1/Pk_CG_Phase1_S000{i_label}_pylians.txt").T
+        # remove shape noise, BoxSize**3/Nparticles
+        Pk_ecosmog_phase_1[1] = Pk_ecosmog_phase_1[1] - (1024**3/1024**3)
+        Pk_ecosmog_phase_2 = np.loadtxt(f"Validation_data/CG_Baojiu_Powmes/Phase2/Pk_CG_Phase2_S000{i_label}_pylians.txt").T
+        Pk_ecosmog_phase_2[1] = Pk_ecosmog_phase_2[1] - (1024**3/1024**3)
 
-        print(i_label, scale_factors[i - 1])
-        
-        Pk_GR_ccl = ccl.nonlin_matter_power(cosmo_universe, Pk_ecosmog2_phase1[0]*cosmo_universe["h"], a=scale_factors[i - 1])*(cosmo_universe["h"]**3)
+        Pk_LCDM_ecosmog_phase_1 = np.loadtxt(f"Validation_data/CG_Baojiu_Powmes/LCDMPhase1/Pk_LCDM_Phase1_S000{i_label}_pylians.txt").T
+        Pk_LCDM_ecosmog_phase_1[1] = Pk_LCDM_ecosmog_phase_1[1] - (1024**3/1024**3)
+        Pk_LCDM_ecosmog_phase_2 = np.loadtxt(f"Validation_data/CG_Baojiu_Powmes/LCDMPhase2/Pk_LCDM_Phase2_S000{i_label}_pylians.txt").T
+        Pk_LCDM_ecosmog_phase_2[1] = Pk_LCDM_ecosmog_phase_2[1] - (1024**3/1024**3)
 
-        Bk_vals_sim.append((Pk_ecosmog2_phase1[1]+Pk_ecosmog2_phase2[1])/(2*Pk_GR_ccl))
+        Bk_vals_sim.append((Pk_ecosmog_phase_1[1]+Pk_ecosmog_phase_2[1])/(Pk_LCDM_ecosmog_phase_1[1]+Pk_LCDM_ecosmog_phase_2[1]))
 
-    k_ECOSMOG = Pk_ecosmog2_phase1[0]
+    k_ECOSMOG = Pk_ecosmog_phase_1[0]
     Bk_vals_sim = np.array(Bk_vals_sim)
-    # make Bk_CuGal_cosmo_funct_ECOSMOG so that for k < 3e-2, it is equal to Bk_vals_sim[k=3e-2]
-    k_ECOSMOG_cut = k_ECOSMOG[k_ECOSMOG > 3e-2]
-    Bk_vals_sim_cut = Bk_vals_sim[:, k_ECOSMOG > 3e-2]
 
-    Bk_CuGal_cosmo_funct_ECOSMOG =  scipy.interpolate.RectBivariateSpline(1/(np.array(scale_factors[idx-1:][::-1])) - 1, k_ECOSMOG_cut, Bk_vals_sim_cut[::-1])
+    # make Bk_CuGal_cosmo_funct_ECOSMOG so that for k < 2e-2, it is equal to Bk_vals_sim[k=2e-2]
+    k_ECOSMOG_cut = k_ECOSMOG[k_ECOSMOG > 2e-2]
+    k_ECOSMOG_cut = k_ECOSMOG_cut[k_ECOSMOG_cut < 4]
+    Bk_vals_sim_cut = Bk_vals_sim[:, k_ECOSMOG > 2e-2]
+    Bk_vals_sim_cut = Bk_vals_sim_cut[:, k_ECOSMOG[k_ECOSMOG > 2e-2] < 4]
+
+    # smooth boost
+    Bk_vals_sim_cut = savgol_filter(Bk_vals_sim_cut, 17, 3, axis=1)
+
+    # extrapolate to higher k with a power-law, matching the slope at the last two points
+    k0 = k_ECOSMOG_cut[-1]
+    k1 = k_ECOSMOG_cut[-80]
+    x0 = np.log(k0)
+    x1 = np.log(k1)
+    B0 = Bk_vals_sim_cut[:, -1]
+    B1 = Bk_vals_sim_cut[:, -80]
+    # dy/d(log k)
+    B0_prime = (B0 - B1) / (x0 - x1)
+    # exponent ensuring derivative continuity
+    p = -x0 * B0_prime / (B0-1)
+    A = (B0-1) * x0**p
+    # extension in k
+    k_add = np.logspace(
+        np.log10(k0) + 1e-5,
+        np.log10(20),
+        10
+    )
+    x_add = np.log(k_add)
+    # log B tail
+    Bk_add = A[:, None] * x_add[None, :]**(-p[:, None]) + 1
+    Bk_vals_sim_extended = np.concatenate(
+        [Bk_vals_sim_cut, Bk_add],
+        axis=1
+    )
+    k_ECOSMOG_extended = np.concatenate([k_ECOSMOG_cut, k_add])
+    # add Bk= Bk_emu[0] for z> z_max
+    z_last = 1/scale_factors[0] - 1
+    z_asym = np.linspace(12, z_last+1, 5)
+    Bk_asym =  B_k_NL_CuGal(1.0, cosmo_universe, np.ones(len(k_ECOSMOG_extended))*1e-2, 1/(z_asym+1))
+    Bk_vals_sim_extended = np.concatenate(
+        [Bk_asym, Bk_vals_sim_extended],
+        axis=0
+    )
+    z_values_extended = np.append(z_asym, 1/(np.array(scale_factors[idx-1:])) - 1)
+    Bk_CuGal_cosmo_funct_ECOSMOG =  scipy.interpolate.RectBivariateSpline(z_values_extended[::-1],
+                                                                        k_ECOSMOG_extended, Bk_vals_sim_extended[::-1])
+    #########################################################
 
     a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog = CuGal_initialize(f_phi_universe, cosmo_universe)
 
