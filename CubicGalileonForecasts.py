@@ -430,23 +430,21 @@ if config['data']['type'] == 2:
 
     # extrapolate to higher k with a power-law, matching the slope at the last two points
     k0 = k_ECOSMOG_cut[-1]
-    k1 = k_ECOSMOG_cut[-80]
-    x0 = np.log(k0)
-    x1 = np.log(k1)
+    k1 = k_ECOSMOG_cut[-100]
+    x0 = k0 + 1e-1  # add small number to avoid zero division in case k0=k1
+    x1 = k1 + 1e-1  # add small number to avoid zero division in case k0=k1
     B0 = Bk_vals_sim_cut[:, -1]
-    B1 = Bk_vals_sim_cut[:, -80]
+    B1 = Bk_vals_sim_cut[:, -100]
     # dy/d(log k)
     B0_prime = (B0 - B1) / (x0 - x1)
+    # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
+    B0_prime = np.where(B0_prime > 0, 0, B0_prime)
     # exponent ensuring derivative continuity
     p = -x0 * B0_prime / (B0-1)
     A = (B0-1) * x0**p
     # extension in k
-    k_add = np.logspace(
-        np.log10(k0) + 1e-5,
-        np.log10(20),
-        10
-    )
-    x_add = np.log(k_add)
+    k_add = np.logspace(np.log10(k_ECOSMOG_cut[-1]+1e-1), np.log10(100), 100)  # add k values up to 100 h/Mpc
+    x_add = k_add + 1e-1
     # log B tail
     Bk_add = A[:, None] * x_add[None, :]**(-p[:, None]) + 1
     Bk_vals_sim_extended = np.concatenate(
@@ -456,8 +454,9 @@ if config['data']['type'] == 2:
     k_ECOSMOG_extended = np.concatenate([k_ECOSMOG_cut, k_add])
     # add Bk= Bk_emu[0] for z> z_max
     z_last = 1/scale_factors[0] - 1
-    z_asym = np.linspace(12, z_last+1, 5)
-    Bk_asym =  B_k_NL_CuGal(1.0, cosmo_universe, np.ones(len(k_ECOSMOG_extended))*1e-2, 1/(z_asym+1))
+    z_asym = np.linspace(12, z_last+1, 10)
+    Bk_asym =  B_k_NL_CuGal(1.0, cosmo_universe, np.ones(len(k_ECOSMOG_extended))*5e-3, 1/(z_asym+1))
+
     Bk_vals_sim_extended = np.concatenate(
         [Bk_asym, Bk_vals_sim_extended],
         axis=0
@@ -465,6 +464,7 @@ if config['data']['type'] == 2:
     z_values_extended = np.append(z_asym, 1/(np.array(scale_factors[idx-1:])) - 1)
     Bk_CuGal_cosmo_funct_ECOSMOG =  scipy.interpolate.RectBivariateSpline(z_values_extended[::-1],
                                                                         k_ECOSMOG_extended, Bk_vals_sim_extended[::-1])
+
     #########################################################
 
     a_setup_ecosmog, UE_setup_ecosmog, coupling_setup_ecosmog = CuGal_initialize(f_phi_universe, cosmo_universe)
@@ -699,8 +699,8 @@ def main():
     # save header information with Obervable = 3x2pt, LSST Y1, and infromation about scale cuts, parameter values and priors, datavector type/file/index
 
     header = "# Observable = 3x2pt, LSST Y1 \n" + "# Scale cuts: k_max = {k_max} h/Mpc, ell_max = {ell_cut} \n".format(k_max=k_max, ell_cut=ell_cut) + \
-    "# Parameter values and priors: \n" + "# Omega_m = {Omega_m}, f_phi = {f_phi}, A_s = {A_s}, h = {h}, n_s = {n_s}, wb = {wb}, b1 = {b1}, b2 = {b2}, b3 = {b3}, b4 = {b4}, b5 = {b5} \n".format(
-        Omega_m=cosmo_universe["Omega_m"], f_phi=f_phi_universe, A_s=cosmo_universe["A_s"], h=cosmo_universe["h"], n_s=cosmo_universe["n_s"], wb=cosmo_universe["Omega_b"], b1=Bias_distribution_fiducial[0][0], b2=Bias_distribution_fiducial[1][0], b3=Bias_distribution_fiducial[2][0], b4=Bias_distribution_fiducial[3][0], b5=Bias_distribution_fiducial[4][0]) + \
+    "# Parameter values and priors: \n" + "# Omega_m = {Omega_m}, f_phi = {f_phi}, A_s = {A_s}, h = {h}, n_s = {n_s}, Omega_b = {Omega_b}, b1 = {b1}, b2 = {b2}, b3 = {b3}, b4 = {b4}, b5 = {b5} \n".format(
+        Omega_m=cosmo_universe["Omega_m"], f_phi=f_phi_universe, A_s=cosmo_universe["A_s"], h=cosmo_universe["h"], n_s=cosmo_universe["n_s"], Omega_b=cosmo_universe["Omega_b"], b1=Bias_distribution_fiducial[0][0], b2=Bias_distribution_fiducial[1][0], b3=Bias_distribution_fiducial[2][0], b4=Bias_distribution_fiducial[3][0], b5=Bias_distribution_fiducial[4][0]) + \
     "# Priors: \n" + "# Omega_m: {Omega_m_prior} \n".format(Omega_m_prior=str(params['priors']['Omega_m'])) + \
     "# f_phi: {f_phi_prior} \n".format(f_phi_prior=str(params['priors']['f_phi'])) + \
     "# A_s: {A_s_prior} \n".format(A_s_prior=str(params['priors']['1e9As'])) + \

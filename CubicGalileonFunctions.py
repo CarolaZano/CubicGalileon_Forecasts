@@ -296,90 +296,209 @@ def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
     input k (array) -> wavevector, units 1/Mpc
     input a (float or array) -> scale factor (1/(1+z))
     input cosmo (cosmology object) -> Cosmology object from CCL
-    
-    output Pk_fR (array) -> Nonlinear matter power spectrum for Hu-Sawicki fR gravity, units (Mpc)^3
+    output Pk_CG (array) -> Nonlinear matter power spectrum for cG gravity, units (Mpc)^3
     """
+    k_ext = 1.5 * cosmo["h"]  # k value where we switch to power-law extrapolation
+    k_emu = k_all * cosmo["h"]  # emulator k grid in 1/Mpc
+
+    # fixed extrapolation grid, independent of input k
+    k_extrap = np.logspace(np.log10(1e-5), np.log10(100), 1000)
+    k_add_ext = k_extrap[k_extrap > k_ext]   # power-law tail region
+
     if isinstance(a, (float, int)):  # Single scale factor case
         input_params_and_redshift = np.append(
             np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
             1.0 / a - 1.0
         )
-        bk_target, err_target = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
-        interp_func = scipy.interpolate.interp1d(k_all * cosmo["h"], bk_target.flatten(), kind='linear', fill_value="extrapolate")
-        pkratio_CuGal = interp_func(k)
-        
+        bk_target, err_target = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list, sepia_data_list, z_all)
+        bk_target = bk_target.flatten()
+
+        # interpolate emulator output onto the fixed grid, up to k_ext
+        interp_func = scipy.interpolate.interp1d(k_emu, bk_target, kind='linear', fill_value="extrapolate")
+        Bk_cut = interp_func(k_extrap[k_extrap <= k_ext])
+
+        # power-law extrapolation matching the slope at the last two points
+        #######################################################
+        k_cut_ext = k_extrap[k_extrap <= k_ext]
+        k0 = k_cut_ext[-1]
+        k1 = k_cut_ext[-2]
+        x0 = k0 + 1e-5  # add small number to avoid zero division in case k0=k1
+        x1 = k1 + 1e-5
+        B0 = Bk_cut[-1]
+        B1 = Bk_cut[-2]
+        # dy/d(log k)
+        B0_prime = (B0 - B1) / (x0 - x1)
+        # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
+        B0_prime = np.where(B0_prime > 0, 0, B0_prime)
+        # exponent ensuring derivative continuity
+        p = -x0 * B0_prime / (B0 - 1)
+        A = (B0 - 1) * x0**p
+        x_add = k_add_ext + 1e-5
+        # log B tail
+        Bk_add = A * x_add**(-p) + 1
+        bk_extrap = np.append(Bk_cut, Bk_add)
+        ########################################################
+
+        # interpolate the consistent extrapolated curve onto the requested k
+        out_func = scipy.interpolate.interp1d(k_extrap, bk_extrap, kind='linear', fill_value="extrapolate")
+        pkratio_CuGal = out_func(k)
+
     else:
         bk_target = []
         z_range = 1.0 / a - 1.0  # Array of redshift values
-
         # Loop over each redshift value
         for z_val in z_range:
             input_params_and_redshift = np.append(
                 np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
                 z_val
             )
-            bk_target_i, _ = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
-            bk_target.append(bk_target_i.flatten()) 
-    
+            bk_target_i, _ = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list, sepia_data_list, z_all)
+            bk_target.append(bk_target_i.flatten())
         # Convert list to array with shape (len(a), len(k_all))
         bk_target = np.array(bk_target)
 
-        
-        # Interpolating each row in bk_target over k
-        pkratio_CuGal = np.array([
-            scipy.interpolate.interp1d(k_all * cosmo["h"], bk_row, kind='linear', fill_value="extrapolate")(k) 
+        # interpolate each row onto the fixed grid, up to k_ext
+        k_cut_ext = k_extrap[k_extrap <= k_ext]
+        Bk_cut = np.array([
+            scipy.interpolate.interp1d(k_emu, bk_row, kind='linear', fill_value="extrapolate")(k_cut_ext)
             for bk_row in bk_target
         ])
-    
+
+        # power-law extrapolation matching the slope at the last two points
+        #######################################################
+        k0 = k_cut_ext[-1]
+        k1 = k_cut_ext[-2]
+        x0 = k0 + 1e-5  # add small number to avoid zero division in case k0=k1
+        x1 = k1 + 1e-5
+        B0 = Bk_cut[:, -1]
+        B1 = Bk_cut[:, -2]
+        # dy/d(log k)
+        B0_prime = (B0 - B1) / (x0 - x1)
+        # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
+        B0_prime = np.where(B0_prime > 0, 0, B0_prime)
+        # exponent ensuring derivative continuity
+        p = -x0 * B0_prime / (B0 - 1)
+        A = (B0 - 1) * x0**p
+        x_add = k_add_ext + 1e-5
+        # log B tail
+        Bk_add = A[:, None] * x_add[None, :]**(-p[:, None]) + 1
+        bk_extrap = np.concatenate([Bk_cut, Bk_add], axis=1)
+        ########################################################
+
+        # interpolate each extrapolated row onto the requested k
+        pkratio_CuGal = np.array([
+            scipy.interpolate.interp1d(k_extrap, bk_row, kind='linear', fill_value="extrapolate")(k)
+            for bk_row in bk_extrap
+        ])    
 
     Pk_ccl = GR_pk2D_obj.__call__(k, a=a) # units (Mpc)^3
     Pk = pkratio_CuGal*Pk_ccl
     
     return Pk
 
-# NL matter power spectra in cG
+# NL Boost in cG
 def B_k_NL_CuGal(f_phi, cosmo, k, a):
     """
     input k (array) -> wavevector, units 1/Mpc
     input a (float or array) -> scale factor (1/(1+z))
     input cosmo (cosmology object) -> Cosmology object from CCL
-    
-    output Pk_fR (array) -> Nonlinear matter power spectrum for Hu-Sawicki fR gravity, units (Mpc)^3
+    output Bk_CG (array) -> Nonlinear  Boost for cG gravity
     """
+    k_ext = 1.5 * cosmo["h"]  # k value where we switch to power-law extrapolation
+    k_emu = k_all * cosmo["h"]  # emulator k grid in 1/Mpc
+
+    # fixed extrapolation grid, independent of input k
+    k_extrap = np.logspace(np.log10(1e-5), np.log10(100), 1000)
+    k_add_ext = k_extrap[k_extrap > k_ext]   # power-law tail region
+
     if isinstance(a, (float, int)):  # Single scale factor case
         input_params_and_redshift = np.append(
             np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
             1.0 / a - 1.0
         )
-        bk_target, err_target = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
-        interp_func = scipy.interpolate.interp1d(k_all * cosmo["h"], bk_target.flatten(), kind='linear', fill_value="extrapolate")
-        pkratio_CuGal = interp_func(k)
-        
+        bk_target, err_target = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list, sepia_data_list, z_all)
+        bk_target = bk_target.flatten()
+
+        # interpolate emulator output onto the fixed grid, up to k_ext
+        interp_func = scipy.interpolate.interp1d(k_emu, bk_target, kind='linear', fill_value="extrapolate")
+        Bk_cut = interp_func(k_extrap[k_extrap <= k_ext])
+
+        # power-law extrapolation matching the slope at the last two points
+        #######################################################
+        k_cut_ext = k_extrap[k_extrap <= k_ext]
+        k0 = k_cut_ext[-1]
+        k1 = k_cut_ext[-2]
+        x0 = k0 + 1e-5  # add small number to avoid zero division in case k0=k1
+        x1 = k1 + 1e-5
+        B0 = Bk_cut[-1]
+        B1 = Bk_cut[-2]
+        # dy/d(log k)
+        B0_prime = (B0 - B1) / (x0 - x1)
+        # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
+        B0_prime = np.where(B0_prime > 0, 0, B0_prime)
+        # exponent ensuring derivative continuity
+        p = -x0 * B0_prime / (B0 - 1)
+        A = (B0 - 1) * x0**p
+        x_add = k_add_ext + 1e-5
+        # log B tail
+        Bk_add = A * x_add**(-p) + 1
+        bk_extrap = np.append(Bk_cut, Bk_add)
+        ########################################################
+
+        # interpolate the consistent extrapolated curve onto the requested k
+        out_func = scipy.interpolate.interp1d(k_extrap, bk_extrap, kind='linear', fill_value="extrapolate")
+        pkratio_CuGal = out_func(k)
+
     else:
         bk_target = []
         z_range = 1.0 / a - 1.0  # Array of redshift values
-
         # Loop over each redshift value
         for z_val in z_range:
             input_params_and_redshift = np.append(
                 np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
                 z_val
             )
-            bk_target_i, _ = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
-            bk_target.append(bk_target_i.flatten()) 
-    
+            bk_target_i, _ = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list, sepia_data_list, z_all)
+            bk_target.append(bk_target_i.flatten())
         # Convert list to array with shape (len(a), len(k_all))
         bk_target = np.array(bk_target)
 
-        # Interpolating each row in bk_target over k
-        pkratio_CuGal = np.array([
-            scipy.interpolate.interp1d(k_all * cosmo["h"], bk_row, kind='linear', fill_value="extrapolate")(k) 
+        # interpolate each row onto the fixed grid, up to k_ext
+        k_cut_ext = k_extrap[k_extrap <= k_ext]
+        Bk_cut = np.array([
+            scipy.interpolate.interp1d(k_emu, bk_row, kind='linear', fill_value="extrapolate")(k_cut_ext)
             for bk_row in bk_target
         ])
-    
 
-    
+        # power-law extrapolation matching the slope at the last two points
+        #######################################################
+        k0 = k_cut_ext[-1]
+        k1 = k_cut_ext[-2]
+        x0 = k0 + 1e-5  # add small number to avoid zero division in case k0=k1
+        x1 = k1 + 1e-5
+        B0 = Bk_cut[:, -1]
+        B1 = Bk_cut[:, -2]
+        # dy/d(log k)
+        B0_prime = (B0 - B1) / (x0 - x1)
+        # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
+        B0_prime = np.where(B0_prime > 0, 0, B0_prime)
+        # exponent ensuring derivative continuity
+        p = -x0 * B0_prime / (B0 - 1)
+        A = (B0 - 1) * x0**p
+        x_add = k_add_ext + 1e-5
+        # log B tail
+        Bk_add = A[:, None] * x_add[None, :]**(-p[:, None]) + 1
+        bk_extrap = np.concatenate([Bk_cut, Bk_add], axis=1)
+        ########################################################
+
+        # interpolate each extrapolated row onto the requested k
+        pkratio_CuGal = np.array([
+            scipy.interpolate.interp1d(k_extrap, bk_row, kind='linear', fill_value="extrapolate")(k)
+            for bk_row in bk_extrap
+        ])
+
     return pkratio_CuGal
+
 
 
 """Linear matter power spectra CuGal"""
