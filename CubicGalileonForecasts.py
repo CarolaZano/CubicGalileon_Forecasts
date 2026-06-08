@@ -793,23 +793,38 @@ def main():
 
     np.savetxt("chains/chain_"+config['output']['chain_name']+".txt", np.c_[points, log_w, log_l], header=header, footer='log_Z = {log_z};  chain_time = {chain_time} (--> {chain_time_hms} hh:mm:ss)'.format(log_z=log_z, chain_time=chain_time, chain_time_hms=timedelta(seconds=chain_time)))
     
-    
+
+"""
 import cProfile
 import pstats
 
-cProfile.run('main()', 'profile_stats')
-stats = pstats.Stats('profile_stats')
-stats.sort_stats('cumulative').print_stats(20)  # top 20 slowest functions
+def cProfile_likelihood(theta_dict, Data, invcovmat):
+    pr = cProfile.Profile()
+    pr.enable()
+    result = log_likelihood(theta_dict, Data, invcovmat)
+    pr.disable()
+    return result, pr
 
+print(" ####### Starting cProfile for likelihood... #######")
+theta = {"Omega_m": 0.3, "f_phi": 0.6, "1e9As": 3, "h": 0.68, "ns": 0.96,
+         "Omega_b": 0.0502,
+         "b1": Bias_distribution_fiducial[0][0], "b2": Bias_distribution_fiducial[1][0],
+         "b3": Bias_distribution_fiducial[2][0], "b4": Bias_distribution_fiducial[3][0],
+         "b5": Bias_distribution_fiducial[4][0]}
 
+result, pr = cProfile_likelihood(theta, C_ell_data_mock, gauss_invcov_rotated)
+pr.dump_stats('likelihood_profile.prof')
 
+p = pstats.Stats('likelihood_profile.prof')
+p.sort_stats('cumulative').print_stats(20)
+print(" ####### Finished cProfile for likelihood. #######")
+"""
 if __name__ == "__main__":
     try:
         main()
     finally:
         # Ensure all pools are properly closed
         multiprocessing.active_children()
-
 
 """
 with Pool(5) as pool:

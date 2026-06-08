@@ -1,3 +1,4 @@
+
 """Python functions to compute forecasts for the cubic Galileon model."""
 
 ##########################################################################
@@ -80,11 +81,9 @@ if_savefig = False
 from configobj import ConfigObj
 import subprocess
 
-
 #################################################################
 
 # Loading CuGal files
-
 
 Bk_all, Bk_all_smooth, k_all, z_all = load_boost_data()
 Bk_lin_all, _, _ = load_boost_data_lin()
@@ -291,279 +290,96 @@ def Get_Pk2D_obj_kk_GR_lin(cosmo):
     return ccl.pk2d.Pk2D.from_function(pkfunc=pk_funcSigma2, is_logp=False)
 
 
-# NL matter power spectra in cG
-# NL matter power spectra in cG
+# NL matter power spectra in fR
 def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
     """
     input k (array) -> wavevector, units 1/Mpc
     input a (float or array) -> scale factor (1/(1+z))
     input cosmo (cosmology object) -> Cosmology object from CCL
-    output Pk_CG (array) -> Nonlinear matter power spectrum for cG gravity, units (Mpc)^3
+    
+    output Pk_fR (array) -> Nonlinear matter power spectrum for Hu-Sawicki fR gravity, units (Mpc)^3
     """
-    k_ext = 1.5 * cosmo["h"]  # k value where we switch to power-law extrapolation
-    k_emu = k_all * cosmo["h"]  # emulator k grid in 1/Mpc
-
-    # fixed extrapolation grid, independent of input k
-    k_extrap = np.logspace(np.log10(1e-3), np.log10(50), 200)
-    k_add_ext = k_extrap[k_extrap > k_ext]   # power-law tail region
-
     if isinstance(a, (float, int)):  # Single scale factor case
-        # if z > 12, set boost to 1
-        if 1/a - 1 > 12:
-            return GR_pk2D_obj.__call__(k, a=a)
+        input_params_and_redshift = np.append(
+            np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
+            1.0 / a - 1.0
+        )
+        bk_target, err_target = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
+        interp_func = scipy.interpolate.interp1d(k_all * cosmo["h"], bk_target.flatten(), kind='linear', fill_value="extrapolate")
+        pkratio_CuGal = interp_func(k)
         
-        input_params_and_redshift = np.append(
-            np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
-            1.0 / a - 1.0
-        )
-        bk_target, err_target = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list, sepia_data_list, z_all)
-        bk_target = bk_target.flatten()
-
-        # interpolate emulator output onto the fixed grid, up to k_ext
-        interp_func = scipy.interpolate.interp1d(k_emu, bk_target, kind='linear', fill_value="extrapolate")
-        Bk_cut = interp_func(k_extrap[k_extrap <= k_ext])
-
-        # power-law extrapolation matching the slope at the last two points
-        #######################################################
-        k_cut_ext = k_extrap[k_extrap <= k_ext]
-        k0 = k_cut_ext[-1]
-        k1 = k_cut_ext[-2]
-        x0 = k0 + 1e-5  # add small number to avoid zero division in case k0=k1
-        x1 = k1 + 1e-5
-        B0 = Bk_cut[-1]
-        B1 = Bk_cut[-2]
-        # dy/d(log k)
-        B0_prime = (B0 - B1) / (x0 - x1)
-        # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
-        B0_prime = np.where(B0_prime > 0, 0, B0_prime)
-        # exponent ensuring derivative continuity
-        p = -x0 * B0_prime / (B0 - 1)
-        A = (B0 - 1) * x0**p
-        x_add = k_add_ext + 1e-5
-        # log B tail
-        Bk_add = A * x_add**(-p) + 1
-        bk_extrap = np.append(Bk_cut, Bk_add)
-        ########################################################
-
-        # interpolate the consistent extrapolated curve onto the requested k
-        out_func = scipy.interpolate.interp1d(k_extrap, bk_extrap, kind='linear', fill_value="extrapolate")
-        pkratio_CuGal = out_func(k)
-
     else:
         bk_target = []
         z_range = 1.0 / a - 1.0  # Array of redshift values
-        # Loop over each redshift value
-        for z_val in z_range:
-            # for any arr > 12, set boost to 1
-            if z_val > 12:
-                bk_target.append(np.ones_like(k_emu))
-            else:
-                input_params_and_redshift = np.append(
-                    np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
-                    z_val
-                )
-                #print("getting bk_target for z=", z_val)
-                bk_target_i, _ = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list, sepia_data_list, z_all)
-                #print("got bk_target for z=", z_val)
-                bk_target.append(bk_target_i.flatten())
-        # Convert list to array with shape (len(a), len(k_all))
-        bk_target = np.array(bk_target)
 
-        # interpolate each row onto the fixed grid, up to k_ext
-        k_cut_ext = k_extrap[k_extrap <= k_ext]
-        Bk_cut = np.array([
-            scipy.interpolate.interp1d(k_emu, bk_row, kind='linear', fill_value="extrapolate")(k_cut_ext)
-            for bk_row in bk_target
-        ])
-
-        # power-law extrapolation matching the slope at the last two points
-        #######################################################
-        k0 = k_cut_ext[-1]
-        k1 = k_cut_ext[-2]
-        x0 = k0 + 1e-5  # add small number to avoid zero division in case k0=k1
-        x1 = k1 + 1e-5
-        B0 = Bk_cut[:, -1]
-        B1 = Bk_cut[:, -2]
-        # dy/d(log k)
-        B0_prime = (B0 - B1) / (x0 - x1)
-        # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
-        B0_prime = np.where(B0_prime > 0, 0, B0_prime)
-        # exponent ensuring derivative continuity
-        p = -x0 * B0_prime / (B0 - 1)
-        A = (B0 - 1) * x0**p
-        x_add = k_add_ext + 1e-5
-        # log B tail
-        Bk_add = A[:, None] * x_add[None, :]**(-p[:, None]) + 1
-        bk_extrap = np.concatenate([Bk_cut, Bk_add], axis=1)
-        ########################################################
-
-        # interpolate each extrapolated row onto the requested k
-        pkratio_CuGal = np.array([
-            scipy.interpolate.interp1d(k_extrap, bk_row, kind='linear', fill_value="extrapolate")(k)
-            for bk_row in bk_extrap
-        ])    
-
-    Pk_ccl = GR_pk2D_obj.__call__(k, a=a) # units (Mpc)^3
-    Pk = pkratio_CuGal*Pk_ccl
-    
-    return Pk
-
-def Pk_2D_obj_CuGal_deldel(GR_pk2D_obj, f_phi, cosmo,a_arr, UE_arr, coupling_factor_arr):
-    """
-    input k (array) -> wavevector, units 1/Mpc
-    input a (float or array) -> scale factor (1/(1+z))
-    input cosmo (cosmology object) -> Cosmology object from CCL
-    output Pk_CG_obj (array) -> 2D object forNonlinear matter power spectrum for cG gravity, units (Mpc)^3
-    """
-
-    def pk_func(k,a):
-        # Compute P(k, a) separately for different tracer combinations
-        #print("length array check: ", len(a_array), len(k_array), P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, np.array([1,1/(0.006636100756698626 + 1)])).shape, mu_cugal_val.shape)
-        Pk_NL_kk = P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo, k, a)
-
-        return Pk_NL_kk
-    
-    return ccl.pk2d.Pk2D.from_function(pkfunc=pk_func, is_logp=False)
-
-
-def Pk_2D_obj_CuGal_kk(pk2D_obj_deldel, f_phi, cosmo,a_arr, UE_arr, coupling_factor_arr):
-    """
-    input k (array) -> wavevector, units 1/Mpc
-    input a (float or array) -> scale factor (1/(1+z))
-    input cosmo (cosmology object) -> Cosmology object from CCL
-    output Pk_CG_obj (array) -> 2D object forNonlinear matter power spectrum for cG gravity, units (Mpc)^3
-    """
-
-    def pk_func(k,a):
-        # Compute P(k, a) separately for different tracer combinations
-        mu_cugal_val = np.repeat(mu_CuGal(a_arr, coupling_factor_arr, [a])[:, np.newaxis], len(k), axis=1)
-        #print("length array check: ", len(a_array), len(k_array), P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, np.array([1,1/(0.006636100756698626 + 1)])).shape, mu_cugal_val.shape)
-        Pk_NL_kk = mu_cugal_val**2 * pk2D_obj_deldel.__call__(k, a=a)
-        return Pk_NL_kk
-    
-    return ccl.pk2d.Pk2D.from_function(pkfunc=pk_func, is_logp=False)
-    
-def Pk_2D_obj_CuGal_delk(pk2D_obj_deldel, f_phi, cosmo,a_arr, UE_arr, coupling_factor_arr):
-    """
-    input k (array) -> wavevector, units 1/Mpc
-    input a (float or array) -> scale factor (1/(1+z))
-    input cosmo (cosmology object) -> Cosmology object from CCL
-    output Pk_CG_obj (array) -> 2D object forNonlinear matter power spectrum for cG gravity, units (Mpc)^3
-    """
-
-    def pk_func(k,a):
-        # Compute P(k, a) separately for different tracer combinations
-        mu_cugal_val = np.repeat(mu_CuGal(a_arr, coupling_factor_arr, [a])[:, np.newaxis], len(k), axis=1)
-        #print("length array check: ", len(a_array), len(k_array), P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, np.array([1,1/(0.006636100756698626 + 1)])).shape, mu_cugal_val.shape)
-        Pk_NL_kk = mu_cugal_val * pk2D_obj_deldel.__call__(k, a=a)
-        return Pk_NL_kk
-    
-    return ccl.pk2d.Pk2D.from_function(pkfunc=pk_func, is_logp=False)
-
-
-# NL Boost in cG
-def B_k_NL_CuGal(f_phi, cosmo, k, a):
-    """
-    input k (array) -> wavevector, units 1/Mpc
-    input a (float or array) -> scale factor (1/(1+z))
-    input cosmo (cosmology object) -> Cosmology object from CCL
-    output Bk_CG (array) -> Nonlinear  Boost for cG gravity
-    """
-    k_ext = 1.5 * cosmo["h"]  # k value where we switch to power-law extrapolation
-    k_emu = k_all * cosmo["h"]  # emulator k grid in 1/Mpc
-
-    # fixed extrapolation grid, independent of input k
-    k_extrap = np.logspace(np.log10(1e-3), np.log10(50), 100)
-    k_add_ext = k_extrap[k_extrap > k_ext]   # power-law tail region
-
-    if isinstance(a, (float, int)):  # Single scale factor case
-        input_params_and_redshift = np.append(
-            np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
-            1.0 / a - 1.0
-        )
-        bk_target, err_target = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list, sepia_data_list, z_all)
-        bk_target = bk_target.flatten()
-
-        # interpolate emulator output onto the fixed grid, up to k_ext
-        interp_func = scipy.interpolate.interp1d(k_emu, bk_target, kind='linear', fill_value="extrapolate")
-        Bk_cut = interp_func(k_extrap[k_extrap <= k_ext])
-
-        # power-law extrapolation matching the slope at the last two points
-        #######################################################
-        k_cut_ext = k_extrap[k_extrap <= k_ext]
-        k0 = k_cut_ext[-1]
-        k1 = k_cut_ext[-2]
-        x0 = k0 + 1e-5  # add small number to avoid zero division in case k0=k1
-        x1 = k1 + 1e-5
-        B0 = Bk_cut[-1]
-        B1 = Bk_cut[-2]
-        # dy/d(log k)
-        B0_prime = (B0 - B1) / (x0 - x1)
-        # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
-        B0_prime = np.where(B0_prime > 0, 0, B0_prime)
-        # exponent ensuring derivative continuity
-        p = -x0 * B0_prime / (B0 - 1)
-        A = (B0 - 1) * x0**p
-        x_add = k_add_ext + 1e-5
-        # log B tail
-        Bk_add = A * x_add**(-p) + 1
-        bk_extrap = np.append(Bk_cut, Bk_add)
-        ########################################################
-
-        # interpolate the consistent extrapolated curve onto the requested k
-        out_func = scipy.interpolate.interp1d(k_extrap, bk_extrap, kind='linear', fill_value="extrapolate")
-        pkratio_CuGal = out_func(k)
-
-    else:
-        bk_target = []
-        z_range = 1.0 / a - 1.0  # Array of redshift values
         # Loop over each redshift value
         for z_val in z_range:
             input_params_and_redshift = np.append(
                 np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
                 z_val
             )
-            bk_target_i, _ = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list, sepia_data_list, z_all)
-            bk_target.append(bk_target_i.flatten())
+            bk_target_i, _ = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
+            bk_target.append(bk_target_i.flatten()) 
+    
         # Convert list to array with shape (len(a), len(k_all))
         bk_target = np.array(bk_target)
 
-        # interpolate each row onto the fixed grid, up to k_ext
-        k_cut_ext = k_extrap[k_extrap <= k_ext]
-        Bk_cut = np.array([
-            scipy.interpolate.interp1d(k_emu, bk_row, kind='linear', fill_value="extrapolate")(k_cut_ext)
+        
+        # Interpolating each row in bk_target over k
+        pkratio_CuGal = np.array([
+            scipy.interpolate.interp1d(k_all * cosmo["h"], bk_row, kind='linear', fill_value="extrapolate")(k) 
             for bk_row in bk_target
         ])
+    
 
-        # power-law extrapolation matching the slope at the last two points
-        #######################################################
-        k0 = k_cut_ext[-1]
-        k1 = k_cut_ext[-2]
-        x0 = k0 + 1e-5  # add small number to avoid zero division in case k0=k1
-        x1 = k1 + 1e-5
-        B0 = Bk_cut[:, -1]
-        B1 = Bk_cut[:, -2]
-        # dy/d(log k)
-        B0_prime = (B0 - B1) / (x0 - x1)
-        # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
-        B0_prime = np.where(B0_prime > 0, 0, B0_prime)
-        # exponent ensuring derivative continuity
-        p = -x0 * B0_prime / (B0 - 1)
-        A = (B0 - 1) * x0**p
-        x_add = k_add_ext + 1e-5
-        # log B tail
-        Bk_add = A[:, None] * x_add[None, :]**(-p[:, None]) + 1
-        bk_extrap = np.concatenate([Bk_cut, Bk_add], axis=1)
-        ########################################################
+    Pk_ccl = GR_pk2D_obj.__call__(k, a=a) # units (Mpc)^3
+    Pk = pkratio_CuGal*Pk_ccl
+    
+    return Pk
 
-        # interpolate each extrapolated row onto the requested k
+# NL matter power spectra in cG
+def B_k_NL_CuGal(f_phi, cosmo, k, a):
+    """
+    input k (array) -> wavevector, units 1/Mpc
+    input a (float or array) -> scale factor (1/(1+z))
+    input cosmo (cosmology object) -> Cosmology object from CCL
+    
+    output Pk_fR (array) -> Nonlinear matter power spectrum for Hu-Sawicki fR gravity, units (Mpc)^3
+    """
+    if isinstance(a, (float, int)):  # Single scale factor case
+        input_params_and_redshift = np.append(
+            np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
+            1.0 / a - 1.0
+        )
+        bk_target, err_target = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
+        interp_func = scipy.interpolate.interp1d(k_all * cosmo["h"], bk_target.flatten(), kind='linear', fill_value="extrapolate")
+        pkratio_CuGal = interp_func(k)
+        
+    else:
+        bk_target = []
+        z_range = 1.0 / a - 1.0  # Array of redshift values
+
+        # Loop over each redshift value
+        for z_val in z_range:
+            input_params_and_redshift = np.append(
+                np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
+                z_val
+            )
+            bk_target_i, _ = emu_redshift(input_params_and_redshift[np.newaxis, :], sepia_model_list,sepia_data_list, z_all)
+            bk_target.append(bk_target_i.flatten()) 
+    
+        # Convert list to array with shape (len(a), len(k_all))
+        bk_target = np.array(bk_target)
+
+        # Interpolating each row in bk_target over k
         pkratio_CuGal = np.array([
-            scipy.interpolate.interp1d(k_extrap, bk_row, kind='linear', fill_value="extrapolate")(k)
-            for bk_row in bk_extrap
+            scipy.interpolate.interp1d(k_all * cosmo["h"], bk_row, kind='linear', fill_value="extrapolate")(k) 
+            for bk_row in bk_target
         ])
+    
 
+    
     return pkratio_CuGal
-
 
 
 """Linear matter power spectra CuGal"""
@@ -851,7 +667,7 @@ def comoving_radial_dist_CuGal(a_arr, UE_arr, cosmo, a_array):
     
     # Define the redshift integral range
     #z_integral = np.linspace(1/a_array.min() - 1, 0, int(1e4))  # Use the minimum value of `a_array`
-    x_integral = np.linspace(np.log(a_array.min()), 0, int(2e3)) # Compute the scale factor over the range
+    x_integral = np.linspace(np.log(a_array.min()), 0, int(2e2)) # Compute the scale factor over the range
     a_integral = np.exp(x_integral)
     z_integral = 1/a_integral - 1
     
@@ -876,15 +692,13 @@ def comoving_radial_dist_CuGal(a_arr, UE_arr, cosmo, a_array):
 
 def Cell_CuGal(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi, cosmo_GR, z, 
                Binned_distribution_s, Binned_distribution_l, Bias_distribution,
-               pk2D_obj, tracer1_type="k", tracer2_type="k"):
+               GR_pk2D_obj, tracer1_type="k", tracer2_type="k"):
     # Define the scale factor array
     a_array = np.logspace(np.log10(1/14), 0, 100)
     
     # Compute chi using the comoving radial distance function
     chi_array = comoving_radial_dist_CuGal(a_arr, UE_arr, cosmo_GR, a_array)
     
-    #plt.plot(a_array, chi_array)
-
     # Compute h_over_h0 using the Hubble expansion rate function
     h_over_h0_array = E_CuGal(a_arr, UE_arr, a_array)
     
@@ -905,10 +719,27 @@ def Cell_CuGal(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi, cosmo_GR, 
         'growth_rate': growthrate_array
     }
 
-    k_array = np.logspace(-4, 3, 200)
+    k_array = np.logspace(-4, 3, 500)
     
+    # Compute P(k, a) separately for different tracer combinations
+    mu_cugal_val = np.repeat(mu_CuGal(a_arr, coupling_factor_arr, a_array)[:, np.newaxis], len(k_array), axis=1)
+    Pk_NL_kk = mu_cugal_val**2 * P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, a_array)
+    Pk_NL_kg = mu_cugal_val * P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, a_array)
+    Pk_NL_gg = P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, a_array)
+
+    # Dictionary to store the correct P(k, a) choice
+    Pk_NL_dict_map = {
+        ("k", "k"): Pk_NL_kk,
+        ("k", "g"): Pk_NL_kg,
+        ("g", "k"): Pk_NL_kg,
+        ("g", "g"): Pk_NL_gg
+    }
+
     # Select the correct Pk_NL array
-    Pk_NL_selected = pk2D_obj.__call__(k_array, a=a_array)  # This will be the same for all tracer combinations since pk2D_obj is defined to return the correct P(k,a) based on the tracer types
+    Pk_NL_selected = Pk_NL_dict_map.get((tracer1_type, tracer2_type))
+    if Pk_NL_selected is None:
+        raise ValueError(f"Invalid tracer combination: ({tracer1_type}, {tracer2_type})")
+
     Pk_NL_dict = {
         'a': a_array,
         'k': k_array,
@@ -976,7 +807,7 @@ def Cell_CuGal_Validation(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi,
         'growth_rate': growthrate_array
     }
 
-    k_array = np.logspace(-4, 3, 200)
+    k_array = np.logspace(-4, 3, 500)
 
     Pk_ccl = GR_pk2D_obj.__call__(k_array, a=a_array)
 
@@ -1049,12 +880,8 @@ def loglikelihood(Data, cosmo, f_phi, InvCovmat, Bias_distribution):
 
     # Initialize CuGal stuff
     a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc = CuGal_initialize(f_phi, cosmo)
-    #P_delta2D_GR_lin_mcmc = Get_Pk2D_obj_kk_GR_lin(cosmo)
+    P_delta2D_GR_lin_mcmc = Get_Pk2D_obj_kk_GR_lin(cosmo)
     P_delta2D_GR_nl_mcmc = Get_Pk2D_obj_kk_GR_nl(cosmo)
-    P_delta2D_cG_nl_gg = Pk_2D_obj_CuGal_deldel(P_delta2D_GR_nl_mcmc, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
-    P_delta2D_cG_nl_kg = Pk_2D_obj_CuGal_delk(P_delta2D_cG_nl_gg, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
-    P_delta2D_cG_nl_kk = Pk_2D_obj_CuGal_kk(P_delta2D_cG_nl_gg, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
-
     # shape-shape
     binned_ell_kk = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_s)
 
@@ -1069,17 +896,17 @@ def loglikelihood(Data, cosmo, f_phi, InvCovmat, Bias_distribution):
     ########## Get theoretical data vector for single MCMC step - linear , muSigmaparam ##########
     # shape-shape
     D_theory_kk = np.array(Cell_CuGal(binned_ell_kk,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc,f_phi,cosmo, z , Binned_distribution_s,Binned_distribution_l,\
-                      Bias_distribution,P_delta2D_cG_nl_kk, tracer1_type="k", tracer2_type="k")[1]).flatten()
+                      Bias_distribution,P_delta2D_GR_nl_mcmc, tracer1_type="k", tracer2_type="k")[1]).flatten()
    
     # shape-pos
     
     D_theory_delk = np.array(Cell_CuGal(binned_ell_delk,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc,f_phi,cosmo, z , Binned_distribution_s,Binned_distribution_l,\
-                      Bias_distribution,P_delta2D_cG_nl_kg, tracer1_type="g", tracer2_type="k")[1]).flatten()
+                      Bias_distribution,P_delta2D_GR_nl_mcmc, tracer1_type="g", tracer2_type="k")[1]).flatten()
 
     # pos-pos
 
     D_theory_deldel = np.array(Cell_CuGal(binned_ell_deldel,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc,f_phi,cosmo, z , Binned_distribution_s,Binned_distribution_l,\
-                      Bias_distribution,P_delta2D_cG_nl_gg, tracer1_type="g", tracer2_type="g")[1]).flatten()
+                      Bias_distribution,P_delta2D_GR_nl_mcmc, tracer1_type="g", tracer2_type="g")[1]).flatten()
 
 
     D_theory = np.append(np.append(D_theory_kk, D_theory_delk), D_theory_deldel)
