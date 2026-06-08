@@ -715,8 +715,14 @@ def log_probability(theta_dict):
     lp = log_prior(theta_dict)
     if not np.isfinite(lp):
         return -np.inf
-    return lp + log_likelihood(theta_dict, C_ell_data_mock, gauss_invcov_rotated)
-
+    # if log likelihood is nan/err, return -inf
+    ll = log_likelihood(theta_dict, C_ell_data_mock, gauss_invcov_rotated)
+    if not np.isfinite(ll):
+        return -np.inf
+    # if exception in likelihood calculation, return -inf
+    elif np.isnan(ll):
+        return -np.inf
+    return lp + ll
 
 ################## RUN MCMC ########################
 # Set the random seed for reproducibility
