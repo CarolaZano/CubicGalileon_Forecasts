@@ -93,6 +93,60 @@ from configobj import ConfigObj
 import subprocess
 
 #################################################################
+
+# Loading CuGal files
+
+Bk_all, Bk_all_smooth, k_all, z_all = load_boost_data()
+Bk_lin_all, _, _ = load_boost_data_lin()
+p_all = load_params()
+
+print(p_all.shape, flush=True)
+
+## Data prep
+z_index = 1
+
+y_vals = Bk_all[:, z_index, :]
+
+# y_ind = np.arange(0, y_vals.shape[1])
+y_ind = k_all
+
+# Load validation data
+
+Bk_all_val, Bk_lin_all_val, _, _ = load_boost_data(LIBRARY_BK_FILE_VAL, LIBRARY_ZK_FILE_VAL)
+target_vals = Bk_all_val[:, z_index, :]
+input_params = load_params(LIBRARY_PARAM_FILE_VAL)
+
+train_indices = [i for i in np.arange(49)] # if i not in test_indices]
+print(train_indices, flush=True)
+
+p_all_train = p_all[train_indices]
+y_vals_train = Bk_all[:, z_index, :][train_indices]
+
+sepia_data = sepia_data_format(p_all_train, y_vals_train, y_ind)
+print(sepia_data)
+model_filename = '../CubicGalileonEmu/CubicGalileonEmu/model/multivariate_model_z_index' + str(z_index) 
+
+#sepia_model = do_pca(sepia_data, exp_variance=0.95)
+#sepia_model = do_gp_train(sepia_model, model_filename)
+#plot_train_diagnostics(sepia_model)
+
+if if_train_all:
+    
+    do_gp_train_multiple(model_dir='../CubicGalileonEmu/CubicGalileonEmu/model/', 
+                        p_train_all = p_all[train_indices],
+                        y_vals_all = Bk_all_smooth[train_indices],
+                        y_ind_all = k_all,
+                        z_index_range=range(49))
+
+sepia_model_list, sepia_data_list = load_model_multiple(model_dir='../CubicGalileonEmu/CubicGalileonEmu/model/', 
+                                        p_train_all=p_all[train_indices],
+                                        y_vals_all=Bk_all_smooth[train_indices],
+                                        y_ind_all=k_all,
+                                        z_index_range=range(50))
+
+
+
+#################################################################
 # 1. Mock redshift distribution
 # Define the redshift interval and forecast years
 redshift_range = np.linspace(0.01, 3.5, 500)
@@ -189,6 +243,28 @@ ell_max_mockdata = 15000
 # define quantities for binning of ell -- will depend on the data
 
 ell_bin_num_mockdata = 20
+
+ ######################### run Cell_CuGal_Validation once to initialize emu #########################
+a_setup_universe, UE_setup_universe, coupling_setup_universe = CuGal_initialize(1.0, cosmo_fid)
+P_delta2D_GR_lin_universe = Get_Pk2D_obj_kk_GR_lin(cosmo_fid)
+P_delta2D_GR_nl_universe = Get_Pk2D_obj_kk_GR_nl(cosmo_fid)
+
+# Get Get mock 3x2pt data
+ells_SRD = np.loadtxt("ell-values")
+
+"""Get mock C(ell) data"""
+
+## LENSING - LENSING
+
+binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
+
+# find C_ell for non-linear matter power spectrum
+mockdata = Cell_CuGal(binned_ell,a_setup_universe, UE_setup_universe, coupling_setup_universe, 1.0, cosmo_fid, 
+                        z , Binned_distribution_source,Binned_distribution_lens,
+                        Bias_distribution_fiducial, P_delta2D_GR_nl_universe, tracer1_type="k", tracer2_type="k")
+
+del mockdata
+##################################################
 
 if config['data']['type'] == 0:
     print("Reading cosmo file to get the parameters of the data vector...")
@@ -367,7 +443,7 @@ elif config['data']['type'] == 1:
     del mockdata
 
 # use ecosmog sim, hardcoded for now, to get the boost for the simulated data vector
-if config['data']['type'] == 2:
+elif config['data']['type'] == 2:
     print("Reading params file to get the parameters of the data vector...")
     params_filename = config['data']['params']
     with open(params_filename, 'r') as f:
@@ -520,7 +596,7 @@ if config['data']['type'] == 2:
     del mockdata
 
 else:
-    raise ValueError("Invalid data type specified in config file. Must be 0 or 1.")
+    raise ValueError("Invalid data type specified in config file. Must be 0, 1 or 2.")
 
 
 
@@ -717,6 +793,15 @@ def main():
 
     np.savetxt("chains/chain_"+config['output']['chain_name']+".txt", np.c_[points, log_w, log_l], header=header, footer='log_Z = {log_z};  chain_time = {chain_time} (--> {chain_time_hms} hh:mm:ss)'.format(log_z=log_z, chain_time=chain_time, chain_time_hms=timedelta(seconds=chain_time)))
     
+    
+import cProfile
+import pstats
+
+cProfile.run('main()', 'profile_stats')
+stats = pstats.Stats('profile_stats')
+stats.sort_stats('cumulative').print_stats(20)  # top 20 slowest functions
+
+
 
 if __name__ == "__main__":
     try:

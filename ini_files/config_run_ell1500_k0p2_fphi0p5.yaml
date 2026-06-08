@@ -27,15 +27,15 @@ data:
   # and the specific simulation for the run
   index: 45
   # if type = 1, need to specify the following file (that gives the parameters of the data vector):
-  params: ./ini_files/params_ecosmog.yaml
+  params: ./ini_files/params_ecosmog_fphi0p5.yaml
 
 output: 
-  chain_name: mcmc_cG_3x2pt_LSSTY1_emulator_cosmo_ecosmog_fphi1p0_ell1500_k0p2
+  chain_name: mcmc_cG_3x2pt_LSSTY1_emulator_cosmo_ecosmog_fphi0p5_ell1500_k0p2
 sampler: 
   mcmc:
     verbose: True
     n_eff: 5000
     n_live: 1000
     resume: True
-    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_emulator_cosmo_ecosmog_fphi1p0_ell1500_k0p2
+    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_emulator_cosmo_ecosmog_fphi0p5_ell1500_k0p2
     

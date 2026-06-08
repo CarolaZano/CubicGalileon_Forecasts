@@ -1,4 +1,3 @@
-
 """Python functions to compute forecasts for the cubic Galileon model."""
 
 ##########################################################################
@@ -81,9 +80,11 @@ if_savefig = False
 from configobj import ConfigObj
 import subprocess
 
+
 #################################################################
 
 # Loading CuGal files
+
 
 Bk_all, Bk_all_smooth, k_all, z_all = load_boost_data()
 Bk_lin_all, _, _ = load_boost_data_lin()
@@ -290,7 +291,7 @@ def Get_Pk2D_obj_kk_GR_lin(cosmo):
     return ccl.pk2d.Pk2D.from_function(pkfunc=pk_funcSigma2, is_logp=False)
 
 
-# NL matter power spectra in fR
+# NL matter power spectra in cG
 def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
     """
     input k (array) -> wavevector, units 1/Mpc
@@ -302,7 +303,7 @@ def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
     k_emu = k_all * cosmo["h"]  # emulator k grid in 1/Mpc
 
     # fixed extrapolation grid, independent of input k
-    k_extrap = np.logspace(np.log10(1e-5), np.log10(100), 1000)
+    k_extrap = np.logspace(np.log10(1e-3), np.log10(50), 100)
     k_add_ext = k_extrap[k_extrap > k_ext]   # power-law tail region
 
     if isinstance(a, (float, int)):  # Single scale factor case
@@ -408,7 +409,7 @@ def B_k_NL_CuGal(f_phi, cosmo, k, a):
     k_emu = k_all * cosmo["h"]  # emulator k grid in 1/Mpc
 
     # fixed extrapolation grid, independent of input k
-    k_extrap = np.logspace(np.log10(1e-5), np.log10(100), 1000)
+    k_extrap = np.logspace(np.log10(1e-3), np.log10(50), 100)
     k_add_ext = k_extrap[k_extrap > k_ext]   # power-law tail region
 
     if isinstance(a, (float, int)):  # Single scale factor case
