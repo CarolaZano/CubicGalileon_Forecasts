@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=64
 #SBATCH --mem=200G
-#SBATCH --time=10:05:00
+#SBATCH --time=23:05:00
 
 module load conda
 module load cray-fftw/3.3.10.6
