@@ -727,7 +727,8 @@ def log_probability(theta_dict):
         return -np.inf
     try:
         ll = log_likelihood(theta_dict, C_ell_data_mock, gauss_invcov_rotated)
-    except (ValueError, FloatingPointError, np.linalg.LinAlgError):
+    except ccl.errors.CCLError:
+        print("pyccl error for theta:", theta_dict)
         return -np.inf
     if not np.isfinite(ll):
         return -np.inf

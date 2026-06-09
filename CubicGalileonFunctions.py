@@ -292,7 +292,6 @@ def Get_Pk2D_obj_kk_GR_lin(cosmo):
 
 
 # NL matter power spectra in cG
-# NL matter power spectra in cG
 def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
     """
     input k (array) -> wavevector, units 1/Mpc
@@ -336,13 +335,17 @@ def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
         B0_prime = (B0 - B1) / (x0 - x1)
         # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
         B0_prime = np.where(B0_prime > 0, 0, B0_prime)
-        # exponent ensuring derivative continuity
-        p = -x0 * B0_prime / (B0 - 1)
-        A = (B0 - 1) * x0**p
-        x_add = k_add_ext + 1e-5
-        # log B tail
-        Bk_add = A * x_add**(-p) + 1
-        bk_extrap = np.append(Bk_cut, Bk_add)
+        # if B0 = 1 and B0_prime = 0 to within some tolerance, set Bk_add to 1
+        if np.abs(B0 - 1) <= 1e-3 and np.abs(B0_prime) <= 1e-2:
+            bk_extrap = np.append(Bk_cut, np.ones(len(k_add_ext)))
+        else:
+            # exponent ensuring derivative continuity
+            p = -x0 * B0_prime / (B0 - 1)
+            A = (B0 - 1) * x0**p
+            x_add = k_add_ext + 1e-5
+            # log B tail
+            Bk_add = A * x_add**(-p) + 1
+            bk_extrap = np.append(Bk_cut, Bk_add)
         ########################################################
 
         # interpolate the consistent extrapolated curve onto the requested k
@@ -389,12 +392,16 @@ def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
         # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
         B0_prime = np.where(B0_prime > 0, 0, B0_prime)
         # exponent ensuring derivative continuity
-        p = -x0 * B0_prime / (B0 - 1)
-        A = (B0 - 1) * x0**p
-        x_add = k_add_ext + 1e-5
-        # log B tail
-        Bk_add = A[:, None] * x_add[None, :]**(-p[:, None]) + 1
-        bk_extrap = np.concatenate([Bk_cut, Bk_add], axis=1)
+        # if B0 = 1 and B0_prime = 0 to within some tolerance, set Bk_add to 1
+        if np.all((np.isclose(B0, 1, atol=1e-3)) & (np.isclose(B0_prime, 0, atol=1e-2))):
+            bk_extrap = np.concatenate([Bk_cut, np.ones((Bk_cut.shape[0], len(k_add_ext)))], axis=1)
+        else:
+            p = -x0 * B0_prime / (B0 - 1)
+            A = (B0 - 1) * x0**p
+            x_add = k_add_ext + 1e-5
+            # log B tail
+            Bk_add = A[:, None] * x_add[None, :]**(-p[:, None]) + 1
+            bk_extrap = np.concatenate([Bk_cut, Bk_add], axis=1)
         ########################################################
 
         # interpolate each extrapolated row onto the requested k
@@ -405,7 +412,6 @@ def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
 
     Pk_ccl = GR_pk2D_obj.__call__(k, a=a) # units (Mpc)^3
     Pk = pkratio_CuGal*Pk_ccl
-    
     return Pk
 
 def Pk_2D_obj_CuGal_deldel(GR_pk2D_obj, f_phi, cosmo,a_arr, UE_arr, coupling_factor_arr):
