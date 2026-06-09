@@ -93,10 +93,14 @@ from configobj import ConfigObj
 import subprocess
 
 # print all versions of imported packages
+import types
+
 print("Versions of imported packages:")
-for name, module in locals().items():
-    if hasattr(module, '__version__'):
-        print(f"  {name}: {module.__version__}")
+for name, module in list(globals().items()):
+    if isinstance(module, types.ModuleType):
+        version = getattr(module, "__version__", None)
+        if version is not None:
+            print(f"{name}: {version}")
 
 #################################################################
 
