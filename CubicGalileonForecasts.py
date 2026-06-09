@@ -92,6 +92,12 @@ if_savefig = False
 from configobj import ConfigObj
 import subprocess
 
+# print all versions of imported packages
+print("Versions of imported packages:")
+for name, module in locals().items():
+    if hasattr(module, '__version__'):
+        print(f"  {name}: {module.__version__}")
+
 #################################################################
 
 # Loading CuGal files
