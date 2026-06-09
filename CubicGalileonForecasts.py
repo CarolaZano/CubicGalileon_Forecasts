@@ -715,12 +715,11 @@ def log_probability(theta_dict):
     lp = log_prior(theta_dict)
     if not np.isfinite(lp):
         return -np.inf
-    # if log likelihood is nan/err, return -inf
-    ll = log_likelihood(theta_dict, C_ell_data_mock, gauss_invcov_rotated)
-    if not np.isfinite(ll):
+    try:
+        ll = log_likelihood(theta_dict, C_ell_data_mock, gauss_invcov_rotated)
+    except (ValueError, FloatingPointError, np.linalg.LinAlgError):
         return -np.inf
-    # if exception in likelihood calculation, return -inf
-    elif np.isnan(ll):
+    if not np.isfinite(ll):
         return -np.inf
     return lp + ll
 
