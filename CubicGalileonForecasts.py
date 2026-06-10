@@ -256,7 +256,6 @@ ell_bin_num_mockdata = 20
 
  ######################### run Cell_CuGal_Validation once to initialize emu #########################
 a_setup_universe, UE_setup_universe, coupling_setup_universe = CuGal_initialize(1.0, cosmo_fid)
-P_delta2D_GR_lin_universe = Get_Pk2D_obj_kk_GR_lin(cosmo_fid)
 P_delta2D_GR_nl_universe = Get_Pk2D_obj_kk_GR_nl(cosmo_fid)
 
 # Get Get mock 3x2pt data
@@ -317,7 +316,6 @@ if config['data']['type'] == 0:
     f_phi_universe = f_phi_val_edges
     a_setup_universe, UE_setup_universe, coupling_setup_universe = CuGal_initialize(f_phi_universe, cosmo_universe)
 
-    P_delta2D_GR_lin_universe = Get_Pk2D_obj_kk_GR_lin(cosmo_universe)
     P_delta2D_GR_nl_universe = Get_Pk2D_obj_kk_GR_nl(cosmo_universe)
 
     # Get Get mock 3x2pt data
@@ -402,9 +400,10 @@ elif config['data']['type'] == 1:
 
     a_setup_universe, UE_setup_universe, coupling_setup_universe = CuGal_initialize(f_phi_universe, cosmo_universe)
 
-    P_delta2D_GR_lin_universe = Get_Pk2D_obj_kk_GR_lin(cosmo_universe)
     P_delta2D_GR_nl_universe = Get_Pk2D_obj_kk_GR_nl(cosmo_universe)
-
+    P_delta2D_cG_nl_gg_universe = Pk_2D_obj_CuGal_deldel(P_delta2D_GR_nl_universe, f_phi_universe, cosmo_universe, a_setup_universe, UE_setup_universe, coupling_setup_universe)
+    P_delta2D_cG_nl_kg_universe = Pk_2D_obj_CuGal_delk(P_delta2D_cG_nl_gg_universe, f_phi_universe, cosmo_universe, a_setup_universe, UE_setup_universe, coupling_setup_universe)
+    P_delta2D_cG_nl_kk_universe = Pk_2D_obj_CuGal_kk(P_delta2D_cG_nl_gg_universe, f_phi_universe, cosmo_universe, a_setup_universe, UE_setup_universe, coupling_setup_universe)
 
     """Get mock C(ell) data"""
 
@@ -415,7 +414,7 @@ elif config['data']['type'] == 1:
     # find C_ell for non-linear matter power spectrum
     mockdata = Cell_CuGal(binned_ell,a_setup_universe, UE_setup_universe, coupling_setup_universe, f_phi_universe, cosmo_universe, 
                         z , Binned_distribution_source,Binned_distribution_lens,
-                        Bias_distribution_fiducial, P_delta2D_GR_nl_universe, tracer1_type="k", tracer2_type="k")
+                        Bias_distribution_fiducial, P_delta2D_cG_nl_kk_universe, tracer1_type="k", tracer2_type="k")
 
     ell_kk_mockdata = mockdata[0]
     D_kk_mockdata = mockdata[1]
@@ -428,7 +427,7 @@ elif config['data']['type'] == 1:
     # find C_ell for non-linear matter power spectrum
     mockdata = Cell_CuGal(binned_ell,a_setup_universe, UE_setup_universe, coupling_setup_universe, f_phi_universe,
                         cosmo_universe, z , Binned_distribution_source,Binned_distribution_lens,\
-                        Bias_distribution_fiducial,P_delta2D_GR_nl_universe, tracer1_type="k", tracer2_type="g")
+                        Bias_distribution_fiducial,P_delta2D_cG_nl_kg_universe, tracer1_type="k", tracer2_type="g")
 
     ell_delk_mockdata = mockdata[0]
     D_delk_mockdata = mockdata[1]
@@ -440,7 +439,7 @@ elif config['data']['type'] == 1:
     # find C_ell for non-linear matter power spectrum
     mockdata = Cell_CuGal(binned_ell,a_setup_universe, UE_setup_universe, coupling_setup_universe, f_phi_universe,
                         cosmo_universe, z , Binned_distribution_source,Binned_distribution_lens,\
-                        Bias_distribution_fiducial, P_delta2D_GR_nl_universe, tracer1_type="g", tracer2_type="g")
+                        Bias_distribution_fiducial, P_delta2D_cG_nl_kk_universe, tracer1_type="g", tracer2_type="g")
 
     ell_deldel_mockdata = mockdata[0]
     D_deldel_mockdata = mockdata[1]
