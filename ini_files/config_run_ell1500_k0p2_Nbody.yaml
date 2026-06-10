@@ -43,7 +43,7 @@ output:
 sampler: 
   mcmc:
     verbose: True
-    n_eff: 5000
+    n_eff: 3000
     n_live: 1000
     resume: True
     hdf5_name:  mcmc_cG_3x2pt_LSSTY1_validation_Nbody_ell1500_k0p2
