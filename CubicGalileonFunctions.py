@@ -1058,8 +1058,7 @@ def Cell_CuGal_Validation(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi,
 
 # log likelihood - only baryonic cuts applied
 def loglikelihood(Data, cosmo, f_phi, InvCovmat, Bias_distribution):
-    #start = time.time()
-        
+    #start = time.time()        
     # Extract 3x2pt data vector
     D_data, ell_mockdata, z, Binned_distribution_s,Binned_distribution_l,\
                    ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata = Data
@@ -1102,6 +1101,7 @@ def loglikelihood(Data, cosmo, f_phi, InvCovmat, Bias_distribution):
     D_theory = np.append(np.append(D_theory_kk, D_theory_delk), D_theory_deldel)
     
     Diff = (D_data - D_theory)
+
 
     #print("time = ", time.time() - start)
     #### fsigma8 ####

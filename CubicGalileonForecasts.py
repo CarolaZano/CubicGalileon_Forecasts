@@ -439,7 +439,7 @@ elif config['data']['type'] == 1:
     # find C_ell for non-linear matter power spectrum
     mockdata = Cell_CuGal(binned_ell,a_setup_universe, UE_setup_universe, coupling_setup_universe, f_phi_universe,
                         cosmo_universe, z , Binned_distribution_source,Binned_distribution_lens,\
-                        Bias_distribution_fiducial, P_delta2D_cG_nl_kk_universe, tracer1_type="g", tracer2_type="g")
+                        Bias_distribution_fiducial, P_delta2D_cG_nl_gg_universe, tracer1_type="g", tracer2_type="g")
 
     ell_deldel_mockdata = mockdata[0]
     D_deldel_mockdata = mockdata[1]
@@ -705,13 +705,13 @@ with open(config['data']['params'], 'r') as f:
 # add additional bespoke priors if needed
 def log_prior(theta_dict):
     theta = [float(theta_dict[key]) for key in ["Omega_m", "f_phi", "1e9As", "h", "ns", "Omega_b", "b1", "b2", "b3", "b4", "b5"]]
-    Omega_c, f_phi, A_s1e9, h, n_s, Omega_b, b1, b2, b3, b4, b5 = theta 
+    Omega_m, f_phi, A_s1e9, h, n_s, Omega_b, b1, b2, b3, b4, b5 = theta 
     priors = params['priors']
     if not priors['Planck_prior']:
         return 0.0
-    gauss_funct = scipy.stats.multivariate_normal(mu_prior, cov_prior)
-    
-    return gauss_funct.logpdf([n_s, Omega_b*h**2])
+    else:
+        gauss_funct = scipy.stats.multivariate_normal(mu_prior, cov_prior)
+        return gauss_funct.logpdf([n_s, Omega_b*h**2])
 
 # add standard priors
 prior = Prior()
@@ -764,6 +764,61 @@ pos = [Omega_m_est, f_phi_est, A_s1e9_est, h_est, n_s_est, Omega_b_est,b1_est,b2
 nwalkers, ndim = pos.shape
 print(nwalkers, ndim)
 """
+
+# run tests/do plots to check that everything is consistent:
+# plot 1: plot the mock data vector, with error bars from the covariance matrix, and the theory prediction at the fiducial cosmology, to check that they are consistent
+# print the log likelihood at the fiducial cosmology to check that it is finite and reasonable
+# print the log likelihood at fiducial cosmology with f_phi = 0 (i.e. GR) to check that it is lower than the log likelihood at the fiducial cosmology
+# print the log likelihood at fiducial cosmology +- 1% in each parameter to check that it changes in the expected direction
+
+def test_plots():
+    import matplotlib.pyplot as plt
+    # plot the mock data vector, with error bars from the covariance matrix, and the theory prediction at the fiducial cosmology, to check that they are consistent
+    # for x axis, plot integers from 0 to len(ell_mockdata)
+    #plt.errorbar(range(len(D_kk_mockdata)), D_kk_mockdata, yerr=np.sqrt(np.diag(SRD_compare[:len(D_kk_mockdata),:len(D_kk_mockdata)])), fmt='o', label='Mock data')
+    theta_fiducial = {"Omega_m": cosmo_universe['Omega_m'], "f_phi": f_phi_universe, "1e9As": cosmo_universe['A_s']*1e9, "h": cosmo_universe['h'], "ns": cosmo_universe['n_s'], "Omega_b": cosmo_universe['Omega_b'], "b1": Bias_distribution_fiducial[0][0], "b2": Bias_distribution_fiducial[1][0], "b3": Bias_distribution_fiducial[2][0], "b4": Bias_distribution_fiducial[3][0], "b5": Bias_distribution_fiducial[4][0]}
+
+    binned_ell = bin_ell_deldel(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_lens)
+    D_fiducial_gg = Cell_CuGal(binned_ell,a_setup_universe, UE_setup_universe, coupling_setup_universe, f_phi_universe, cosmo_universe, 
+                        z , Binned_distribution_source,Binned_distribution_lens,
+                        Bias_distribution_fiducial, P_delta2D_cG_nl_gg_universe, tracer1_type="g", tracer2_type="g")[1]
+
+    D_fiducial_gg = (np.array(D_fiducial_gg)).flatten()
+    
+    binned_ell = bin_ell_delk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata,Binned_distribution_source,Binned_distribution_lens)
+    D_fiducial_kg = Cell_CuGal(binned_ell,a_setup_universe, UE_setup_universe, coupling_setup_universe, f_phi_universe, cosmo_universe, 
+                        z , Binned_distribution_source,Binned_distribution_lens,
+                        Bias_distribution_fiducial, P_delta2D_cG_nl_kg_universe, tracer1_type="k", tracer2_type="g")[1]
+    D_fiducial_kg = (np.array(D_fiducial_kg)).flatten()
+
+    binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
+    D_fiducial_kk = Cell_CuGal(binned_ell,a_setup_universe, UE_setup_universe, coupling_setup_universe, f_phi_universe, cosmo_universe, 
+                        z , Binned_distribution_source,Binned_distribution_lens,
+                        Bias_distribution_fiducial, P_delta2D_cG_nl_kk_universe, tracer1_type="k", tracer2_type="k")[1]
+    D_fiducial_kk = (np.array(D_fiducial_kk)).flatten()
+
+    D_fiducial = np.append(np.append(D_fiducial_kk, D_fiducial_kg), D_fiducial_gg)
+    
+    # print the log likelihood at the fiducial cosmology to check that it is finite and reasonable
+    loglike_fiducial = log_likelihood(theta_fiducial, C_ell_data_mock, gauss_invcov_rotated)
+    print("Log likelihood at fiducial cosmology:", loglike_fiducial)
+    theta_GR = {"Omega_m": cosmo_universe['Omega_m'], "f_phi": 0.0, "1e9As": cosmo_universe['A_s']*1e9, "h": cosmo_universe['h'], "ns": cosmo_universe['n_s'], "Omega_b": cosmo_universe['Omega_b'], "b1": Bias_distribution_fiducial[0][0], "b2": Bias_distribution_fiducial[1][0], "b3": Bias_distribution_fiducial[2][0], "b4": Bias_distribution_fiducial[3][0], "b5": Bias_distribution_fiducial[4][0]}
+    loglike_GR = log_likelihood(theta_GR, C_ell_data_mock, gauss_invcov_rotated)
+    print("Log likelihood at GR (f_phi=0):", loglike_GR)
+    # print the log likelihood at fiducial cosmology +- 1% in each parameter to check that it changes in the expected direction
+    for key in theta_fiducial.keys():
+        theta_plus = theta_fiducial.copy()
+        theta_minus = theta_fiducial.copy()
+        theta_plus[key] *= 1.01
+        theta_minus[key] *= 0.99
+        loglike_plus = log_likelihood(theta_plus, C_ell_data_mock, gauss_invcov_rotated)
+        loglike_minus = log_likelihood(theta_minus, C_ell_data_mock, gauss_invcov_rotated)
+        print(f"Log likelihood at {key} +1%:", loglike_plus)
+        print(f"Log likelihood at {key} -1%:", loglike_minus)
+    
+    return
+
+
 # Create the output directory and set up the HDF5 backend
 mcmc_dir = "mcmc"
 #filename = mcmc_dir + "/ " + config['output']['chain_name'] + ".h5"
@@ -834,13 +889,14 @@ p = pstats.Stats('likelihood_profile.prof')
 p.sort_stats('cumulative').print_stats(20)
 print(" ####### Finished cProfile for likelihood. #######")
 """
+"""
 if __name__ == "__main__":
     try:
         main()
     finally:
         # Ensure all pools are properly closed
         multiprocessing.active_children()
-
+"""
 """
 with Pool(5) as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, backend=backend, pool=pool)
