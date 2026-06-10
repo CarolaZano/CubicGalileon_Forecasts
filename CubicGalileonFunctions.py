@@ -306,6 +306,10 @@ def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
     k_extrap = np.logspace(np.log10(1e-3), np.log10(50), 200)
     k_add_ext = k_extrap[k_extrap > k_ext]   # power-law tail region
 
+    # if f_phi < 0.03, set boost to 1
+    if f_phi < 0.03:
+         return GR_pk2D_obj.__call__(k, a=a)
+
     if isinstance(a, (float, int)):  # Single scale factor case
         # if z > 12, set boost to 1
         if 1/a - 1 > 12:
@@ -482,6 +486,13 @@ def B_k_NL_CuGal(f_phi, cosmo, k, a):
     k_extrap = np.logspace(np.log10(1e-3), np.log10(50), 100)
     k_add_ext = k_extrap[k_extrap > k_ext]   # power-law tail region
 
+    if f_phi < 0.03:
+        # return array of ones with same shape as k and a
+        if isinstance(a, (float, int)):
+            return np.ones_like(k)
+        else:
+            return np.ones((len(a), len(k)))
+    
     if isinstance(a, (float, int)):  # Single scale factor case
         input_params_and_redshift = np.append(
             np.array([cosmo["Omega_m"], cosmo["n_s"], 1e9 * cosmo["A_s"], cosmo["h"], f_phi]),
