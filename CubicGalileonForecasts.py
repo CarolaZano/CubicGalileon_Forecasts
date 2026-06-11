@@ -693,6 +693,12 @@ if ell_cut == "baryonic":
     D_kk_mockdata_baryonic = C_ell_arr_kk(Pk2D_OWLSAGN, binned_ell, cosmo_fid, z, Binned_distribution_source, Binned_distribution_lens, Bias_distribution_fiducial)
     D_kk_mockdata_baryonic = (np.array(D_kk_mockdata_baryonic)).flatten()
     newdat = baryonic_scale_cuts(cosmo_fid, ell_mockdata, D_mockdata_GR,D_kk_mockdata_GR, D_kk_mockdata_baryonic, SRD_compare, k_max)
+if ell_cut == "linear":
+    Pk2D_GR_lin_universe = Get_Pk2D_obj_kk_GR_lin(cosmo_universe)
+    binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
+    D_kk_mockdata_linear = C_ell_arr_kk(Pk2D_GR_lin_universe, binned_ell, cosmo_fid, z, Binned_distribution_source, Binned_distribution_lens, Bias_distribution_fiducial)
+    D_kk_mockdata_linear = (np.array(D_kk_mockdata_linear)).flatten()
+    newdat = baryonic_scale_cuts(cosmo_fid, ell_mockdata,D_mockdata_GR, D_kk_mockdata_GR, D_kk_mockdata_linear, SRD_compare, k_max)
 else:
     newdat = scale_cuts(cosmo_fid, ell_mockdata,D_mockdata_GR, D_kk_mockdata_GR, SRD_compare, k_max, ell_cut)
 
