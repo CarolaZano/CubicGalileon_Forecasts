@@ -3,7 +3,7 @@ specs:
   #max_WL ->  lmax cut in z-bins - same for all
   # max_GC -> kmax cut in z-bins - same for all
   scale_cuts:
-    max_WL: 1500
+    max_WL: 'baryonic'
     max_GC: 0.2 # h/Mpc
     cosmo: # for transformation from k_eff to ell
       'Omega_m': 0.31966
@@ -39,12 +39,12 @@ data:
   params: ./ini_files/params_ecosmog.yaml
 
 output: 
-  chain_name: mcmc_cG_3x2pt_LSSTY1_validation_Nbody_ell1500_k0p2
+  chain_name: mcmc_cG_3x2pt_LSSTY1_validation_Nbody_baryonic_k0p2
 sampler: 
   mcmc:
     verbose: True
     n_eff: 10000
     n_live: 1000
     resume: True
-    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_validation_Nbody_ell1500_k0p2
+    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_validation_Nbody_baryonic_k0p2
     

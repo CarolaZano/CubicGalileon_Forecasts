@@ -889,14 +889,14 @@ p = pstats.Stats('likelihood_profile.prof')
 p.sort_stats('cumulative').print_stats(20)
 print(" ####### Finished cProfile for likelihood. #######")
 """
-"""
+
 if __name__ == "__main__":
     try:
         main()
     finally:
         # Ensure all pools are properly closed
         multiprocessing.active_children()
-"""
+
 """
 with Pool(5) as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, backend=backend, pool=pool)
