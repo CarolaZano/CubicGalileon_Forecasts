@@ -273,6 +273,55 @@ mockdata = Cell_CuGal(binned_ell,a_setup_universe, UE_setup_universe, coupling_s
                         Bias_distribution_fiducial, P_delta2D_GR_nl_universe, tracer1_type="k", tracer2_type="k")
 
 del mockdata
+
+# Get GR mockdata
+
+"""Get mock C(ell) data - GR"""
+
+## LENSING - LENSING
+
+binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
+
+# find C_ell for non-linear matter power spectrum
+mockdata = Cell_GR(binned_ell, cosmo_fid, 
+                    z , Binned_distribution_source,Binned_distribution_lens,
+                    Bias_distribution_fiducial, tracer1_type="k", tracer2_type="k")
+
+ell_kk_mockdata = mockdata[0]
+D_kk_mockdata_GR = mockdata[1]
+D_kk_mockdata_GR = (np.array(D_kk_mockdata_GR)).flatten()
+
+## CLUSTERING - LENSING
+
+binned_ell = bin_ell_delk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata,Binned_distribution_source,Binned_distribution_lens)
+
+# find C_ell for non-linear matter power spectrum
+mockdata = Cell_GR(binned_ell, cosmo_fid, 
+                    z , Binned_distribution_source,Binned_distribution_lens,
+                    Bias_distribution_fiducial, tracer1_type="k", tracer2_type="g")
+
+ell_delk_mockdata = mockdata[0]
+D_delk_mockdata_GR = mockdata[1]
+D_delk_mockdata_GR = (np.array(D_delk_mockdata_GR)).flatten()
+
+## CLUSTERING - CLUSTERING
+binned_ell = bin_ell_deldel(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata,Binned_distribution_lens)
+
+# find C_ell for non-linear matter power spectrum
+mockdata = Cell_GR(binned_ell, cosmo_fid, 
+                    z , Binned_distribution_source,Binned_distribution_lens,
+                    Bias_distribution_fiducial, tracer1_type="g", tracer2_type="g")
+
+ell_deldel_mockdata = mockdata[0]
+D_deldel_mockdata_GR = mockdata[1]
+D_deldel_mockdata_GR = (np.array(D_deldel_mockdata_GR)).flatten()
+
+
+ell_mockdata = np.append(np.append(ell_kk_mockdata, ell_delk_mockdata), ell_deldel_mockdata)
+D_mockdata_GR = np.append(np.append(D_kk_mockdata_GR, D_delk_mockdata_GR), D_deldel_mockdata_GR)
+
+del mockdata
+
 ##################################################
 
 if config['data']['type'] == 0:
@@ -633,29 +682,19 @@ print(shear_SRD.shape)
 
 SRD_compare = shear_SRD[:540,:540].copy()
 
-"""Get mock C(ell) data"""
-
-## LENSING - LENSING
-
-binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
-
-# find C_ell for non-linear matter power spectrum
-mockdata = Cell_GR(binned_ell, \
-                cosmo_fid, z , Binned_distribution_source,Binned_distribution_lens,Bias_distribution_fiducial,\
-                tracer1_type="k", tracer2_type="k")
-
-ell_kk_mockdata = mockdata[0]
-D_kk_mockdata_test = mockdata[1]
-D_kk_mockdata_test = (np.array(D_kk_mockdata_test)).flatten()
-
-print(D_kk_mockdata_test.shape)
-del mockdata
-
 k_max = config['specs']['scale_cuts']['max_GC'] # in h/Mpc
 ell_cut = config['specs']['scale_cuts']['max_WL'] # in ell
 
 # apply scale cuts
-newdat = scale_cuts(cosmo_fid, ell_mockdata,D_mockdata, D_kk_mockdata_test, SRD_compare, k_max, ell_cut)
+# if ell_cut == "baryonic", apply baryonic cuts using baryonic_scale_cuts(cosmo, ell, dvec_full, dvec_shear, dvec_kmax, cov_full, k_max)
+if ell_cut == "baryonic":
+    Pk2D_OWLSAGN = Get_Pk2D_obj_OWLSAGN(cosmo_fid)
+    binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
+    D_kk_mockdata_baryonic = C_ell_arr_kk(Pk2D_OWLSAGN, binned_ell, cosmo_fid, z, Binned_distribution_source, Binned_distribution_lens, Bias_distribution_fiducial)
+    D_kk_mockdata_baryonic = (np.array(D_kk_mockdata_baryonic)).flatten()
+    newdat = baryonic_scale_cuts(cosmo_fid, ell_mockdata, D_mockdata_GR,D_kk_mockdata_GR, D_kk_mockdata_baryonic, SRD_compare, k_max)
+else:
+    newdat = scale_cuts(cosmo_fid, ell_mockdata,D_mockdata_GR, D_kk_mockdata_GR, SRD_compare, k_max, ell_cut)
 
 gauss_invcov_rotated = np.linalg.pinv(SRD_compare)
 
