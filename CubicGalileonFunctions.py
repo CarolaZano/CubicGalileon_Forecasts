@@ -1089,7 +1089,7 @@ def loglikelihood(Data, cosmo, f_phi, InvCovmat, Bias_distribution, linearmodel=
     if linearmodel:
         P_delta2D_GR_nl_mcmc = Get_Pk2D_obj_kk_GR_lin(cosmo)
         P_delta2D_cG_nl_gg = Pk_2D_obj_CuGal_deldel_lin(P_delta2D_GR_nl_mcmc, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
-        
+
     P_delta2D_cG_nl_gg = Pk_2D_obj_CuGal_deldel(P_delta2D_GR_nl_mcmc, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
     P_delta2D_cG_nl_kg = Pk_2D_obj_CuGal_delk(P_delta2D_cG_nl_gg, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
     P_delta2D_cG_nl_kk = Pk_2D_obj_CuGal_kk(P_delta2D_cG_nl_gg, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
@@ -1215,7 +1215,7 @@ def load_powmes_pk(fname, boxsize, npart):
 
 def scale_cuts(cosmo, ell, dvec_full, dvec_shear, cov_full, k_max, ell_cut):
     """ 
-    Modified function from Danielle.
+    Modified function from Dani.
     Applies scale cuts from max k and ell values
     """
 
@@ -1441,7 +1441,7 @@ def Get_Pk2D_obj_OWLSAGN(cosmo,linear=False,gravity_model="GR"):
 
 def baryonic_scale_cuts(cosmo, ell, dvec_full, dvec_shear, dvec_kmax, cov_full, k_max):
     """ 
-    Modified function from Danielle.
+    Modified function from Dani.
     Gets the scales (and vector indices) which are excluded if we
     are only keeping non-baryonic scales. We define these scales such that 
     chi^2_{baryonic - DMO) <=1.
@@ -1523,6 +1523,72 @@ def baryonic_scale_cuts(cosmo, ell, dvec_full, dvec_shear, dvec_kmax, cov_full, 
     cov_full[:len(dvec_shear), :len(dvec_shear)] = cov
     
     ex_inds = [i for i in range(len(dvec_full_in)) if dvec_full_in[i] not in dvec_full]
+    print('ex_inds=', ex_inds)
+	
+    return ex_inds
+
+
+def linear_scale_cuts_fulldvec(dvec_nl, dvec_lin, cov):
+    """ 
+    Function from Dani.
+    Gets the scales (and vector indices) which are excluded if we
+    are only keeping linear scales. We define linear scales such that 
+    chi^2_{nl - lin) <=1.
+	
+    This is a version that is hopefully more reliable when data are highly correlated.
+	
+    dvec_nl: data vector from nonlinear theory 
+    dvec_lin: data vector from linear theory
+    cov: data covariance. """
+	
+    # Make a copy of these initial input things before they are changed,
+    # so we can compare and get the indices
+    dvec_nl_in = dvec_nl; dvec_lin_in = dvec_lin; cov_in = cov;
+	
+    # Check that data vector and covariance matrices have consistent dimensions.
+    if ( (len(dvec_nl)!=len(dvec_lin)) or (len(dvec_nl)!=len(cov[:,0])) or (len(dvec_nl)!=len(cov[0,:])) ):
+        raise(ValueError, "in linear_scale_cuts: inconsistent shapes of data vectors and / or covariance matrix.")
+		
+    while(True):
+		
+        # Get an array of all the individual elements which would go into 
+        # getting chi2
+        #sum_terms = np.zeros((len(dvec_nl), len(dvec_nl)))
+        #for i in range(0,len(dvec_nl)):
+        #    for j in range(0,len(dvec_nl)):
+        #        sum_terms[i,j] = (dvec_nl[i] - dvec_lin[i]) * inv_cov[i,j] * (dvec_nl[j] - dvec_lin[j])
+				
+        #print("sum_terms=", sum_terms)
+        #print("chi2=", np.sum(sum_terms))
+        # Check if chi2<=1		
+        
+        # Get the chi2 in the case where you cut each data point
+        # and then actually cut the one that reduces the chi2
+        # the most
+        chi2_temp = np.zeros(len(dvec_nl))
+        for i in range(len(dvec_nl)):
+            delta_dvec = np.delete(dvec_nl, i) - np.delete(dvec_lin, i)
+            cov_cut = np.delete(np.delete(cov,i, axis=0), i, axis=1)
+            inv_cov_cut = np.linalg.pinv(cov_cut)
+            chi2_temp[i] = np.dot(delta_dvec, np.dot(inv_cov_cut, delta_dvec))
+            #sum_temp[i] = np.sum(np.delete(np.delete(sum_terms, i, axis=0), i, axis=1))
+            
+        #Find the index of data point that is cut to produce the smallest chi2:
+        ind_min = np.argmin(chi2_temp)
+        print('ind_min=', ind_min)
+        
+        # Cut that element
+        dvec_nl = np.delete(dvec_nl, ind_min)
+        dvec_lin = np.delete(dvec_lin, ind_min)
+        cov = np.delete( np.delete(cov, ind_min, axis=0), ind_min, axis=1)
+            
+        if (chi2_temp[ind_min]<=1.0):
+            break
+				
+    # Now we should have the final data vector with the appropriate elements cut.
+    # Use this to get the rp indices and scales we should cut.
+
+    ex_inds = [i for i in range(len(dvec_nl_in)) if dvec_nl_in[i] not in dvec_nl]
     print('ex_inds=', ex_inds)
 	
     return ex_inds

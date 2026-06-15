@@ -698,7 +698,17 @@ elif ell_cut == "linear":
     binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
     D_kk_mockdata_linear = C_ell_arr_kk(Pk2D_GR_lin_universe, binned_ell, cosmo_fid, z, Binned_distribution_source, Binned_distribution_lens, Bias_distribution_fiducial)
     D_kk_mockdata_linear = (np.array(D_kk_mockdata_linear)).flatten()
-    newdat = baryonic_scale_cuts(cosmo_fid, ell_mockdata,D_mockdata_GR, D_kk_mockdata_GR, D_kk_mockdata_linear, SRD_compare, k_max)
+    # do the same for delk and deldel
+    binned_ell_delk = bin_ell_delk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata,Binned_distribution_source,Binned_distribution_lens)
+    D_delk_mockdata_linear = C_ell_arr_delk(Pk2D_GR_lin_universe, binned_ell_delk, cosmo_fid, z, Binned_distribution_source, Binned_distribution_lens, Bias_distribution_fiducial)
+    D_delk_mockdata_linear = (np.array(D_delk_mockdata_linear)).flatten()
+    binned_ell_deldel = bin_ell_deldel(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata,Binned_distribution_lens)
+    D_deldel_mockdata_linear = C_ell_arr_deldel(Pk2D_GR_lin_universe, binned_ell_deldel, cosmo_fid, z, Binned_distribution_source, Binned_distribution_lens, Bias_distribution_fiducial)
+    D_deldel_mockdata_linear = (np.array(D_deldel_mockdata_linear)).flatten()
+
+    D_mockdata_GR_linear = np.append(np.append(D_kk_mockdata_linear, D_delk_mockdata_linear), D_deldel_mockdata_linear)
+
+    newdat = linear_scale_cuts_fulldvec(D_mockdata_GR, D_mockdata_GR_linear, SRD_compare)
 else:
     newdat = scale_cuts(cosmo_fid, ell_mockdata,D_mockdata_GR, D_kk_mockdata_GR, SRD_compare, k_max, ell_cut)
 
