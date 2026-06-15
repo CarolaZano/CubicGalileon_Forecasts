@@ -693,7 +693,7 @@ if ell_cut == "baryonic":
     D_kk_mockdata_baryonic = C_ell_arr_kk(Pk2D_OWLSAGN, binned_ell, cosmo_fid, z, Binned_distribution_source, Binned_distribution_lens, Bias_distribution_fiducial)
     D_kk_mockdata_baryonic = (np.array(D_kk_mockdata_baryonic)).flatten()
     newdat = baryonic_scale_cuts(cosmo_fid, ell_mockdata, D_mockdata_GR,D_kk_mockdata_GR, D_kk_mockdata_baryonic, SRD_compare, k_max)
-if ell_cut == "linear":
+elif ell_cut == "linear":
     Pk2D_GR_lin_universe = Get_Pk2D_obj_kk_GR_lin(cosmo_universe)
     binned_ell = bin_ell_kk(ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata, Binned_distribution_source)
     D_kk_mockdata_linear = C_ell_arr_kk(Pk2D_GR_lin_universe, binned_ell, cosmo_fid, z, Binned_distribution_source, Binned_distribution_lens, Bias_distribution_fiducial)
@@ -712,6 +712,9 @@ for i in range(len(newdat)):
 C_ell_data_mock = [D_mockdata, ell_mockdata, z,  Binned_distribution_source,\
                    Binned_distribution_lens, ell_min_mockdata, ell_max_mockdata, ell_bin_num_mockdata]
 
+
+# if config_file['model']['type'] == 'linear', then is_model_linear = True, else is_model_linear = False. config_file['model']['type'] could also not be specified
+is_model_linear = config_file['model']['type'] == 'linear' if 'model' in config_file and 'type' in config_file['model'] else False
 
 ######################## LIKELIHOOD ################################
 
@@ -735,7 +738,7 @@ def log_likelihood(theta_dict, Data, invcovmat):
                       h = h,
                       n_s = n_s,
                       A_s = A_s)
-    return loglikelihood(Data, cosmoMCMCstep, f_phi, invcovmat, Bias_distribution)
+    return loglikelihood(Data, cosmoMCMCstep, f_phi, invcovmat, Bias_distribution, linearmodel=is_model_linear)
 
 
 

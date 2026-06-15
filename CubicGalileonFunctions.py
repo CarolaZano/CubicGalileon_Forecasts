@@ -435,6 +435,23 @@ def Pk_2D_obj_CuGal_deldel(GR_pk2D_obj, f_phi, cosmo,a_arr, UE_arr, coupling_fac
     
     return ccl.pk2d.Pk2D.from_function(pkfunc=pk_func, is_logp=False)
 
+def Pk_2D_obj_CuGal_deldel_lin(GR_pk2D_obj, f_phi, cosmo,a_arr, UE_arr, coupling_factor_arr):
+    """
+    input k (array) -> wavevector, units 1/Mpc
+    input a (float or array) -> scale factor (1/(1+z))
+    input cosmo (cosmology object) -> Cosmology object from CCL
+    output Pk_CG_obj (array) -> 2D object for linear matter power spectrum for cG gravity, units (Mpc)^3
+    """
+
+    def pk_func(k,a):
+        # Compute P(k, a) separately for different tracer combinations
+        #print("length array check: ", len(a_array), len(k_array), P_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo_GR, k_array, np.array([1,1/(0.006636100756698626 + 1)])).shape, mu_cugal_val.shape)
+        Pk_lin_kk = B_k_NL_CuGal(GR_pk2D_obj,f_phi,cosmo, 1e-3, a) * GR_pk2D_obj.__call__(k, a=a)
+
+        return Pk_lin_kk
+    
+    return ccl.pk2d.Pk2D.from_function(pkfunc=pk_func, is_logp=False)
+
 
 def Pk_2D_obj_CuGal_kk(pk2D_obj_deldel, f_phi, cosmo,a_arr, UE_arr, coupling_factor_arr):
     """
@@ -1057,7 +1074,7 @@ def Cell_CuGal_Validation(ell_binned, a_arr, UE_arr, coupling_factor_arr, f_phi,
 
 
 # log likelihood - only baryonic cuts applied
-def loglikelihood(Data, cosmo, f_phi, InvCovmat, Bias_distribution):
+def loglikelihood(Data, cosmo, f_phi, InvCovmat, Bias_distribution, linearmodel=False):
     #start = time.time()        
     # Extract 3x2pt data vector
     D_data, ell_mockdata, z, Binned_distribution_s,Binned_distribution_l,\
@@ -1067,6 +1084,12 @@ def loglikelihood(Data, cosmo, f_phi, InvCovmat, Bias_distribution):
     a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc = CuGal_initialize(f_phi, cosmo)
     #P_delta2D_GR_lin_mcmc = Get_Pk2D_obj_kk_GR_lin(cosmo)
     P_delta2D_GR_nl_mcmc = Get_Pk2D_obj_kk_GR_nl(cosmo)
+    P_delta2D_cG_nl_gg = Pk_2D_obj_CuGal_deldel(P_delta2D_GR_nl_mcmc, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
+
+    if linearmodel:
+        P_delta2D_GR_nl_mcmc = Get_Pk2D_obj_kk_GR_lin(cosmo)
+        P_delta2D_cG_nl_gg = Pk_2D_obj_CuGal_deldel_lin(P_delta2D_GR_nl_mcmc, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
+        
     P_delta2D_cG_nl_gg = Pk_2D_obj_CuGal_deldel(P_delta2D_GR_nl_mcmc, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
     P_delta2D_cG_nl_kg = Pk_2D_obj_CuGal_delk(P_delta2D_cG_nl_gg, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
     P_delta2D_cG_nl_kk = Pk_2D_obj_CuGal_kk(P_delta2D_cG_nl_gg, f_phi, cosmo,a_setup_mcmc, UE_setup_mcmc, coupling_setup_mcmc)
