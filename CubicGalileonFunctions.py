@@ -1439,156 +1439,171 @@ def Get_Pk2D_obj_OWLSAGN(cosmo,linear=False,gravity_model="GR"):
 
 
 
-def baryonic_scale_cuts(cosmo, ell, dvec_full, dvec_shear, dvec_kmax, cov_full, k_max):
-    """ 
-    Modified function from Dani.
-    Gets the scales (and vector indices) which are excluded if we
-    are only keeping non-baryonic scales. We define these scales such that 
-    chi^2_{baryonic - DMO) <=1.
-    dvec_full: full data vector from baryonic theory 
-    dvec_shear: shear data vector from baryonic theory 
-    dvec_kmax: shear data vector from DMO theory
-    cov_full: full data covariance, shear components come first
-    k_max in h/Mpc
-    derived    cov: shear data covariance. """
-    
-    # Make a copy of these initial input things before they are changed,
-    # so we can compare and get the indices
-    dvec_full_in = dvec_full; dvec_shear_in = dvec_shear; dvec_kmax_in = dvec_kmax; cov_in = cov_full;
-	
-	#### first cuts - clustering ######
-    
-    # for galaxy-galaxy lensing (size=91) bins=(02 , 03 , 04 , 13 , 14 , 24 , 34)
-    # for galaxy-galaxy (size=65) bins=(00 , 11 , 22 , 33 , 44)
-    
-    
-    delk_z_array = np.array([0.30,0.30,0.30,0.50,0.50,0.70,0.70])
-    deldel_z_array = np.array([0.30,0.50,0.70,0.90,1.10])
+def baryonic_scale_cuts(cosmo, ell, dvec_full, dvec_shear, dvec_kmax,
+                        cov_full, k_max, n_ell_shear=20):
+    """
+    Modified function from Dani
+
+    dvec_full:   full data vector from baryonic theory
+    dvec_shear:  shear data vector from baryonic theory
+    dvec_kmax:   shear data vector from DMO theory
+    cov_full:    full data covariance, shear components come first
+    k_max:       in h/Mpc
+    n_ell_shear: number of ell bins per shear redshift-bin pair
+    """
+    dvec_full = np.asarray(dvec_full, dtype=float)
+    dvec_shear = np.asarray(dvec_shear, dtype=float)
+    dvec_kmax = np.asarray(dvec_kmax, dtype=float)
+    cov_full = np.asarray(cov_full, dtype=float)
+    ell = np.asarray(ell, dtype=float)
+
+    n_full_in = len(dvec_full)
+
+    # Original-index labels carried through every deletion.
+    full_orig = np.arange(n_full_in)          # labels for dvec_full / cov_full
+    shear_orig = np.arange(len(dvec_shear))   # labels into the *full* vector
+                                              # (shear sits at the front, so
+                                              #  these coincide initially)
+
+    # Per-element ell and shear-bin labels for the shear sector.
+    n_shear = len(dvec_shear)
+    shear_ell = ell[:n_shear].copy()
+    shear_bin = np.arange(n_shear) // n_ell_shear
+
+    #### first cuts - clustering ######
+    # ggl (size=91) bins=(02,03,04,13,14,24,34); gg (size=65) bins=(00,11,22,33,44)
+    delk_z_array = np.array([0.30, 0.30, 0.30, 0.50, 0.50, 0.70, 0.70])
+    deldel_z_array = np.array([0.30, 0.50, 0.70, 0.90, 1.10])
     z_array = np.append(delk_z_array, deldel_z_array)
-    chi = ccl.background.comoving_radial_distance(cosmo, 1/(z_array+1))
+    chi = ccl.background.comoving_radial_distance(cosmo, 1 / (z_array + 1))
     ellmax = k_max * chi - 0.5
-    
     starting_index = len(dvec_shear)
-    len_ell_ranges = int((len(cov_full[0]) - len(dvec_shear))/len(z_array))
+    len_ell_ranges = int((len(cov_full[0]) - len(dvec_shear)) / len(z_array))
     idx_count = 0
     for j in range(len(z_array)):
         for i in range(len_ell_ranges):
             if ell[starting_index + i] >= ellmax[j]:
-                cov_full = np.delete(np.delete(cov_full, starting_index + j*len_ell_ranges + i - idx_count, axis=0), starting_index + j*len_ell_ranges + i - idx_count, axis=1)
-                dvec_full = np.delete(dvec_full, starting_index + j*len_ell_ranges + i - idx_count)
-                idx_count +=1
-    
+                pos = starting_index + j * len_ell_ranges + i - idx_count
+                cov_full = np.delete(np.delete(cov_full, pos, axis=0), pos, axis=1)
+                dvec_full = np.delete(dvec_full, pos)
+                full_orig = np.delete(full_orig, pos)
+                idx_count += 1
+
     #### second cuts - lensing ######
     cov = cov_full[:len(dvec_shear), :len(dvec_shear)]
-    
-    while(True):
-		
-        # Get an array of all the individual elements which would go into 
-        # getting chi2
-        #sum_terms = np.zeros((len(dvec_shear), len(dvec_shear)))
-        #for i in range(0,len(dvec_shear)):
-        #    for j in range(0,len(dvec_shear)):
-        #        sum_terms[i,j] = (dvec_shear[i] - dvec_kmax[i]) * inv_cov[i,j] * (dvec_shear[j] - dvec_kmax[j])
-				
-        #print("sum_terms=", sum_terms)
-        #print("chi2=", np.sum(sum_terms))
-        # Check if chi2<=1		
-        
-        # Get the chi2 in the case where you cut each data point
-        # and then actually cut the one that reduces the chi2
-        # the most
+    while True:
         chi2_temp = np.zeros(len(dvec_shear))
         for i in range(len(dvec_shear)):
             delta_dvec = np.delete(dvec_shear, i) - np.delete(dvec_kmax, i)
-            cov_cut = np.delete(np.delete(cov,i, axis=0), i, axis=1)
+            cov_cut = np.delete(np.delete(cov, i, axis=0), i, axis=1)
             inv_cov_cut = np.linalg.pinv(cov_cut)
             chi2_temp[i] = np.dot(delta_dvec, np.dot(inv_cov_cut, delta_dvec))
-            #sum_temp[i] = np.sum(np.delete(np.delete(sum_terms, i, axis=0), i, axis=1))
-        print('chi2_temp=', chi2_temp)
-            
-        #Find the index of data point that is cut to produce the smallest chi2:
-        ind_min = np.argmin(chi2_temp)
-            
-        # Cut that element
-        dvec_shear = np.delete(dvec_shear, ind_min)
-        dvec_kmax = np.delete(dvec_kmax, ind_min)
-        cov = np.delete(np.delete(cov, ind_min, axis=0), ind_min, axis=1)
-        dvec_full = np.delete(dvec_full, ind_min)
 
-        if (chi2_temp[ind_min]<=1.0):
+        ind_min = int(np.argmin(chi2_temp))
+
+        # ell value and bin of the element being cut (shear-sector indexing).
+        cut_bin = shear_bin[ind_min]
+        cut_ell = shear_ell[ind_min]
+
+        # Cut the chosen element AND every same-bin element with larger ell.
+        to_remove = np.where((shear_bin == cut_bin) & (shear_ell > cut_ell))[0]
+        to_remove = np.union1d(to_remove, [ind_min])
+        print('removing shear indices=', to_remove,
+              '-> original full indices=', shear_orig[to_remove])
+
+        # The shear sector is the front block of the full vector, so the same
+        # positions are removed from dvec_full / cov_full.
+        dvec_shear = np.delete(dvec_shear, to_remove)
+        dvec_kmax = np.delete(dvec_kmax, to_remove)
+        cov = np.delete(np.delete(cov, to_remove, axis=0), to_remove, axis=1)
+        dvec_full = np.delete(dvec_full, to_remove)
+
+        # Keep all label arrays in sync.
+        shear_ell = np.delete(shear_ell, to_remove)
+        shear_bin = np.delete(shear_bin, to_remove)
+        shear_orig = np.delete(shear_orig, to_remove)
+        full_orig = np.delete(full_orig, to_remove)
+
+        if chi2_temp[ind_min] <= 1.0:
             break
-				
-    # Now we should have the final data vector with the appropriate elements cut.
-    # Use this to get the rp indices and scales we should cut.
+
     cov_full[:len(dvec_shear), :len(dvec_shear)] = cov
-    
-    ex_inds = [i for i in range(len(dvec_full_in)) if dvec_full_in[i] not in dvec_full]
+
+    # Excluded original indices = everything not surviving in full_orig.
+    kept = set(full_orig.tolist())
+    ex_inds = [i for i in range(n_full_in) if i not in kept]
     print('ex_inds=', ex_inds)
-	
     return ex_inds
 
 
-def linear_scale_cuts_fulldvec(dvec_nl, dvec_lin, cov):
-    """ 
-    Function from Dani.
-    Gets the scales (and vector indices) which are excluded if we
-    are only keeping linear scales. We define linear scales such that 
-    chi^2_{nl - lin) <=1.
-	
-    This is a version that is hopefully more reliable when data are highly correlated.
-	
-    dvec_nl: data vector from nonlinear theory 
+def linear_scale_cuts_fulldvec(dvec_nl, dvec_lin, cov, ell, n_ell=20):
+    """
+    Function from Dani (modified to also apply ell cuts per bin).
+    Gets the scales (and vector indices) excluded if we keep only linear scales,
+    defined such that chi^2_{nl-lin} <= 1.
+
+    dvec_nl:  data vector from nonlinear theory
     dvec_lin: data vector from linear theory
-    cov: data covariance. """
-	
-    # Make a copy of these initial input things before they are changed,
-    # so we can compare and get the indices
-    dvec_nl_in = dvec_nl; dvec_lin_in = dvec_lin; cov_in = cov;
-	
-    # Check that data vector and covariance matrices have consistent dimensions.
-    if ( (len(dvec_nl)!=len(dvec_lin)) or (len(dvec_nl)!=len(cov[:,0])) or (len(dvec_nl)!=len(cov[0,:])) ):
-        raise(ValueError, "in linear_scale_cuts: inconsistent shapes of data vectors and / or covariance matrix.")
-		
-    while(True):
-		
-        # Get an array of all the individual elements which would go into 
-        # getting chi2
-        #sum_terms = np.zeros((len(dvec_nl), len(dvec_nl)))
-        #for i in range(0,len(dvec_nl)):
-        #    for j in range(0,len(dvec_nl)):
-        #        sum_terms[i,j] = (dvec_nl[i] - dvec_lin[i]) * inv_cov[i,j] * (dvec_nl[j] - dvec_lin[j])
-				
-        #print("sum_terms=", sum_terms)
-        #print("chi2=", np.sum(sum_terms))
-        # Check if chi2<=1		
-        
-        # Get the chi2 in the case where you cut each data point
-        # and then actually cut the one that reduces the chi2
-        # the most
+    cov:      data covariance
+    ell:      array of ell values, same length as dvec (ell-major:
+              [bin0_ell0..ell{n_ell-1}, bin1_ell0.., ...])
+    n_ell:    number of ell bins per redshift bin (default 20)
+    """
+    dvec_nl = np.asarray(dvec_nl, dtype=float)
+    dvec_lin = np.asarray(dvec_lin, dtype=float)
+    cov = np.asarray(cov, dtype=float)
+    ell = np.asarray(ell, dtype=float)
+
+    n_tot = len(dvec_nl)
+    if ((len(dvec_lin) != n_tot) or (cov.shape[0] != n_tot)
+            or (cov.shape[1] != n_tot) or (len(ell) != n_tot)):
+        raise ValueError("in linear_scale_cuts: inconsistent shapes of "
+                         "data vectors, ell array, and/or covariance matrix.")
+
+    # Bin label for each original element (ell-major layout).
+    bin_id_in = np.arange(n_tot) // n_ell
+
+    # Carry original indices, ell values, and bin labels through the deletions
+    # so we can recover the excluded indices reliably.
+    orig_inds = np.arange(n_tot)
+    bin_id = bin_id_in.copy()
+    ell_work = ell.copy()
+
+    while True:
         chi2_temp = np.zeros(len(dvec_nl))
         for i in range(len(dvec_nl)):
             delta_dvec = np.delete(dvec_nl, i) - np.delete(dvec_lin, i)
-            cov_cut = np.delete(np.delete(cov,i, axis=0), i, axis=1)
+            cov_cut = np.delete(np.delete(cov, i, axis=0), i, axis=1)
             inv_cov_cut = np.linalg.pinv(cov_cut)
             chi2_temp[i] = np.dot(delta_dvec, np.dot(inv_cov_cut, delta_dvec))
-            #sum_temp[i] = np.sum(np.delete(np.delete(sum_terms, i, axis=0), i, axis=1))
-            
-        #Find the index of data point that is cut to produce the smallest chi2:
-        ind_min = np.argmin(chi2_temp)
-        print('ind_min=', ind_min)
-        
-        # Cut that element
-        dvec_nl = np.delete(dvec_nl, ind_min)
-        dvec_lin = np.delete(dvec_lin, ind_min)
-        cov = np.delete( np.delete(cov, ind_min, axis=0), ind_min, axis=1)
-            
-        if (chi2_temp[ind_min]<=1.0):
-            break
-				
-    # Now we should have the final data vector with the appropriate elements cut.
-    # Use this to get the rp indices and scales we should cut.
 
-    ex_inds = [i for i in range(len(dvec_nl_in)) if dvec_nl_in[i] not in dvec_nl]
+        # Index whose removal gives the smallest chi2.
+        ind_min = int(np.argmin(chi2_temp))
+        print('ind_min=', ind_min)
+
+        # ell value and bin of the element being cut.
+        cut_bin = bin_id[ind_min]
+        cut_ell = ell_work[ind_min]
+
+        # Remove the chosen element AND every element in the same bin with
+        # ell greater than the cut element's ell.
+        to_remove = np.where((bin_id == cut_bin) & (ell_work > cut_ell))[0]
+        to_remove = np.union1d(to_remove, [ind_min])
+        print('removing indices (current arrays)=', to_remove,
+              '-> original=', orig_inds[to_remove])
+
+        dvec_nl = np.delete(dvec_nl, to_remove)
+        dvec_lin = np.delete(dvec_lin, to_remove)
+        cov = np.delete(np.delete(cov, to_remove, axis=0), to_remove, axis=1)
+        orig_inds = np.delete(orig_inds, to_remove)
+        bin_id = np.delete(bin_id, to_remove)
+        ell_work = np.delete(ell_work, to_remove)
+
+        if chi2_temp[ind_min] <= 1.0:
+            break
+
+    # Excluded original indices = everything not in the surviving set.
+    kept = set(orig_inds.tolist())
+    ex_inds = [i for i in range(n_tot) if i not in kept]
     print('ex_inds=', ex_inds)
-	
     return ex_inds
