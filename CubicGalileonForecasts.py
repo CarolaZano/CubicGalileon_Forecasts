@@ -342,9 +342,37 @@ if config['data']['type'] == 0:
     txt_arr_val_edges = np.loadtxt(config['data']['z_k_file'])
 
     z_arr_val_edges = np.array(txt_arr_val_edges.T[0][np.isfinite(txt_arr_val_edges.T[0])])
-    k_arr_val_edges = np.array(txt_arr_val_edges.T[1])*h_val_edges
+    k_arr_val_edges = np.array(txt_arr_val_edges.T[1])
 
-    Bk_CuGal_cosmo_funct =  scipy.interpolate.RectBivariateSpline(z_arr_val_edges, k_arr_val_edges, Bk_arr_val_edges[sim_index])
+    # extrapolate Bk_arr_val_edges: for k > 1.5, power law like below
+    Bk_arr_tointerp = []
+    for i in range(len(z_arr_val_edges)):
+            k_arr_val_edges_cut = k_arr_val_edges[k_arr_val_edges <= 5]
+            k_extrap = np.logspace(np.log10(5.0001), np.log10(50), 200)
+            # smooth boost
+            Bk_arr_val_edges_cut = Bk_arr_val_edges[sim_index][i, k_arr_val_edges <= 5]
+            Bk_arr_val_edges_cut = savgol_filter(Bk_arr_val_edges_cut, 17, 3)
+            k0 = k_arr_val_edges_cut[-1]
+            k1 = k_arr_val_edges_cut[-20]
+            x0 = k0 
+            x1 = k1
+            B0 = Bk_arr_val_edges_cut[-1]
+            B1 = Bk_arr_val_edges_cut[-20]
+            # dy/d(log k)
+            B0_prime = (B0 - B1) / (x0 - x1)
+            # if gradient is positive, set it to zero to avoid unphysical increase in Bk at high k
+            B0_prime = np.where(B0_prime > 0, 0, B0_prime)
+            # exponent ensuring derivative continuity
+            p = -x0 * B0_prime / (B0 - 1)
+            A = (B0 - 1) * x0**p
+            x_add = k_extrap
+            # log B tail
+            Bk_add = A * x_add**(-p) + 1
+            Bk_arr_tointerp = np.append(Bk_arr_tointerp, np.append(Bk_arr_val_edges_cut, Bk_add))
+
+    Bk_arr_tointerp = Bk_arr_tointerp.reshape(len(z_arr_val_edges), len(k_arr_val_edges_cut) + len(k_extrap))
+    k_tot = np.append(k_arr_val_edges_cut, k_extrap)
+    Bk_CuGal_cosmo_funct = scipy.interpolate.RectBivariateSpline(z_arr_val_edges, k_tot, Bk_arr_tointerp)
 
     # Define cosmology -- our "universe cosmology"
 

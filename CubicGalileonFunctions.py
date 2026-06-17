@@ -299,7 +299,7 @@ def P_k_NL_CuGal(GR_pk2D_obj, f_phi, cosmo, k, a):
     input cosmo (cosmology object) -> Cosmology object from CCL
     output Pk_CG (array) -> Nonlinear matter power spectrum for cG gravity, units (Mpc)^3
     """
-    k_ext = 1.5 * cosmo["h"]  # k value where we switch to power-law extrapolation
+    k_ext = 5.0 * cosmo["h"]  # k value where we switch to power-law extrapolation
     k_emu = k_all * cosmo["h"]  # emulator k grid in 1/Mpc
 
     # fixed extrapolation grid, independent of input k
@@ -496,7 +496,7 @@ def B_k_NL_CuGal(f_phi, cosmo, k, a):
     input cosmo (cosmology object) -> Cosmology object from CCL
     output Bk_CG (array) -> Nonlinear  Boost for cG gravity
     """
-    k_ext = 1.5 * cosmo["h"]  # k value where we switch to power-law extrapolation
+    k_ext = 5.0 * cosmo["h"]  # k value where we switch to power-law extrapolation
     k_emu = k_all * cosmo["h"]  # emulator k grid in 1/Mpc
 
     # fixed extrapolation grid, independent of input k
