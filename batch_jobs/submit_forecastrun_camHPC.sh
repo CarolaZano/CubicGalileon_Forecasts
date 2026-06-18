@@ -10,7 +10,7 @@
 
 #! sbatch directives begin here ###############################
 #! Name of the job:
-#SBATCH -J config_run_baryoniccuts_k0p2
+#SBATCH -J config_run_baryoniccuts_k0p2_Nbody
 #! Which project should be charged:
 #SBATCH -A DIRAC-DP339-CPU
 #SBATCH -p icelake
@@ -66,7 +66,7 @@ source /home/dc-zano2/CG_forecasts_env/bin/activate
 application="/home/dc-zano2/CubicGalileon_Forecasts/CubicGalileonForecasts.py"
 
 #! Run options for the application:
-options="./ini_files/config_run_baryoniccuts_k0p2.yaml"
+options="./ini_files/config_run_baryoniccuts_k0p2_Nbody.yaml"
 
 #! Work directory (i.e. where the job will run):
 workdir="$SLURM_SUBMIT_DIR/.."  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
