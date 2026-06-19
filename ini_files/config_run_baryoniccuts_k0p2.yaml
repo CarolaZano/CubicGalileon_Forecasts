@@ -21,21 +21,21 @@ data:
   #     1 -> from Emulator
   #     2 -> from simulation (read data vector from file)
   # if type = 0, need to specify the following files:
-  data_file: './Validation_data/Boost_validation.npy'
-  z_k_file: './Validation_data/z_k_validation.txt'
-  cosmo_file: './Validation_data/cosmo_validation'
+  data_file: './Validation_data/Boost_validation_edges.npy'
+  z_k_file: './Validation_data/z_k_validation_edges.txt'
+  cosmo_file: './Validation_data/cosmo_validation_edges'
   # and the specific simulation for the run
-  index: 24
+  index: 45
   # if type = 1, need to specify the following file (that gives the parameters of the data vector):
   params: ./ini_files/params_ecosmog.yaml
 
 output: 
-  chain_name: mcmc_cG_3x2pt_LSSTY1_validation_center_i24_baryonic_k0p2
+  chain_name: mcmc_cG_3x2pt_LSSTY1_validation_i45_baryonic_k0p2
 sampler: 
   mcmc:
     verbose: True
     n_eff: 10000
     n_live: 3000
     resume: True
-    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_validation_center_i24_baryonic_k0p2
+    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_validation_i45_baryonic_k0p2
     
