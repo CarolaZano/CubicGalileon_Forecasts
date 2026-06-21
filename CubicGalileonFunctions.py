@@ -1536,74 +1536,67 @@ def baryonic_scale_cuts(cosmo, ell, dvec_full, dvec_shear, dvec_kmax,
     return ex_inds
 
 
-def linear_scale_cuts_fulldvec(dvec_nl, dvec_lin, cov, ell, n_ell=20):
-    """
-    Function from Dani (modified to also apply ell cuts per bin).
-    Gets the scales (and vector indices) excluded if we keep only linear scales,
-    defined such that chi^2_{nl-lin} <= 1.
-
-    dvec_nl:  data vector from nonlinear theory
+def linear_scale_cuts_fulldvec(dvec_nl, dvec_lin, cov):
+    """ 
+    Function from Dani.
+    Gets the scales (and vector indices) which are excluded if we
+    are only keeping linear scales. We define linear scales such that 
+    chi^2_{nl - lin) <=1.
+	
+    This is a version that is hopefully more reliable when data are highly correlated.
+	
+    dvec_nl: data vector from nonlinear theory 
     dvec_lin: data vector from linear theory
-    cov:      data covariance
-    ell:      array of ell values, same length as dvec (ell-major:
-              [bin0_ell0..ell{n_ell-1}, bin1_ell0.., ...])
-    n_ell:    number of ell bins per redshift bin (default 20)
-    """
-    dvec_nl = np.asarray(dvec_nl, dtype=float)
-    dvec_lin = np.asarray(dvec_lin, dtype=float)
-    cov = np.asarray(cov, dtype=float)
-    ell = np.asarray(ell, dtype=float)
-
-    n_tot = len(dvec_nl)
-    if ((len(dvec_lin) != n_tot) or (cov.shape[0] != n_tot)
-            or (cov.shape[1] != n_tot) or (len(ell) != n_tot)):
-        raise ValueError("in linear_scale_cuts: inconsistent shapes of "
-                         "data vectors, ell array, and/or covariance matrix.")
-
-    # Bin label for each original element (ell-major layout).
-    bin_id_in = np.arange(n_tot) // n_ell
-
-    # Carry original indices, ell values, and bin labels through the deletions
-    # so we can recover the excluded indices reliably.
-    orig_inds = np.arange(n_tot)
-    bin_id = bin_id_in.copy()
-    ell_work = ell.copy()
-
-    while True:
+    cov: data covariance. """
+	
+    # Make a copy of these initial input things before they are changed,
+    # so we can compare and get the indices
+    dvec_nl_in = dvec_nl; dvec_lin_in = dvec_lin; cov_in = cov;
+	
+    # Check that data vector and covariance matrices have consistent dimensions.
+    if ( (len(dvec_nl)!=len(dvec_lin)) or (len(dvec_nl)!=len(cov[:,0])) or (len(dvec_nl)!=len(cov[0,:])) ):
+        raise(ValueError, "in linear_scale_cuts: inconsistent shapes of data vectors and / or covariance matrix.")
+		
+    while(True):
+		
+        # Get an array of all the individual elements which would go into 
+        # getting chi2
+        #sum_terms = np.zeros((len(dvec_nl), len(dvec_nl)))
+        #for i in range(0,len(dvec_nl)):
+        #    for j in range(0,len(dvec_nl)):
+        #        sum_terms[i,j] = (dvec_nl[i] - dvec_lin[i]) * inv_cov[i,j] * (dvec_nl[j] - dvec_lin[j])
+				
+        #print("sum_terms=", sum_terms)
+        #print("chi2=", np.sum(sum_terms))
+        # Check if chi2<=1		
+        
+        # Get the chi2 in the case where you cut each data point
+        # and then actually cut the one that reduces the chi2
+        # the most
         chi2_temp = np.zeros(len(dvec_nl))
         for i in range(len(dvec_nl)):
             delta_dvec = np.delete(dvec_nl, i) - np.delete(dvec_lin, i)
-            cov_cut = np.delete(np.delete(cov, i, axis=0), i, axis=1)
+            cov_cut = np.delete(np.delete(cov,i, axis=0), i, axis=1)
             inv_cov_cut = np.linalg.pinv(cov_cut)
             chi2_temp[i] = np.dot(delta_dvec, np.dot(inv_cov_cut, delta_dvec))
-
-        # Index whose removal gives the smallest chi2.
-        ind_min = int(np.argmin(chi2_temp))
+            #sum_temp[i] = np.sum(np.delete(np.delete(sum_terms, i, axis=0), i, axis=1))
+            
+        #Find the index of data point that is cut to produce the smallest chi2:
+        ind_min = np.argmin(chi2_temp)
         print('ind_min=', ind_min)
-
-        # ell value and bin of the element being cut.
-        cut_bin = bin_id[ind_min]
-        cut_ell = ell_work[ind_min]
-
-        # Remove the chosen element AND every element in the same bin with
-        # ell greater than the cut element's ell.
-        to_remove = np.where((bin_id == cut_bin) & (ell_work > cut_ell))[0]
-        to_remove = np.union1d(to_remove, [ind_min])
-        print('removing indices (current arrays)=', to_remove,
-              '-> original=', orig_inds[to_remove])
-
-        dvec_nl = np.delete(dvec_nl, to_remove)
-        dvec_lin = np.delete(dvec_lin, to_remove)
-        cov = np.delete(np.delete(cov, to_remove, axis=0), to_remove, axis=1)
-        orig_inds = np.delete(orig_inds, to_remove)
-        bin_id = np.delete(bin_id, to_remove)
-        ell_work = np.delete(ell_work, to_remove)
-
-        if chi2_temp[ind_min] <= 1.0:
+        
+        # Cut that element
+        dvec_nl = np.delete(dvec_nl, ind_min)
+        dvec_lin = np.delete(dvec_lin, ind_min)
+        cov = np.delete( np.delete(cov, ind_min, axis=0), ind_min, axis=1)
+            
+        if (chi2_temp[ind_min]<=1.0):
             break
+				
+    # Now we should have the final data vector with the appropriate elements cut.
+    # Use this to get the rp indices and scales we should cut.
 
-    # Excluded original indices = everything not in the surviving set.
-    kept = set(orig_inds.tolist())
-    ex_inds = [i for i in range(n_tot) if i not in kept]
+    ex_inds = [i for i in range(len(dvec_nl_in)) if dvec_nl_in[i] not in dvec_nl]
     print('ex_inds=', ex_inds)
+	
     return ex_inds
