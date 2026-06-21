@@ -736,7 +736,7 @@ elif ell_cut == "linear":
 
     D_mockdata_GR_linear = np.append(np.append(D_kk_mockdata_linear, D_delk_mockdata_linear), D_deldel_mockdata_linear)
 
-    newdat = linear_scale_cuts_fulldvec(D_mockdata_GR, D_mockdata_GR_linear, SRD_compare)
+    newdat = linear_scale_cuts_fulldvec(D_mockdata_GR, D_mockdata_GR_linear, SRD_compare, ell_mockdata)
 else:
     newdat = scale_cuts(cosmo_fid, ell_mockdata,D_mockdata_GR, D_kk_mockdata_GR, SRD_compare, k_max, ell_cut)
 
