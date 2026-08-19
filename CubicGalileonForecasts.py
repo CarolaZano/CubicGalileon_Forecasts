@@ -785,19 +785,30 @@ sampler_Planck_arr = np.load("Prior_Planck_arr.npy")
 mu_prior = [cosmo_universe['n_s'], cosmo_universe["Omega_b"]*cosmo_universe["h"]**2]
 cov_prior = np.cov(sampler_Planck_arr.T)
 
+
 with open(config['data']['params'], 'r') as f:
         params = yaml.safe_load(f)
 
 # add additional bespoke priors if needed
 def log_prior(theta_dict):
+    lp = 0.0
     theta = [float(theta_dict[key]) for key in ["Omega_m", "f_phi", "1e9As", "h", "ns", "Omega_b", "b1", "b2", "b3", "b4", "b5"]]
     Omega_m, f_phi, A_s1e9, h, n_s, Omega_b, b1, b2, b3, b4, b5 = theta 
     priors = params['priors']
     if not priors['Planck_prior']:
-        return 0.0
+        lp += 0.0
     else:
         gauss_funct = scipy.stats.multivariate_normal(mu_prior, cov_prior)
-        return gauss_funct.logpdf([n_s, Omega_b*h**2])
+        lp += gauss_funct.logpdf([n_s, Omega_b*h**2])
+
+    # gaussian priors
+    gauss = priors.get('Gaussian') or {}
+    if 'wb' in gauss:
+        mean, std = gauss['wb']
+        if mean is False:
+            mean = cosmo_universe["Omega_b"] * cosmo_universe["h"]**2
+        lp += scipy.stats.norm(mean, std).logpdf(Omega_b*h**2)
+    return lp
 
 # add standard priors
 prior = Prior()
