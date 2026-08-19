@@ -948,7 +948,8 @@ def main():
     "# Datavector file/index (if from cosmo file): {datavector_info} \n".format(datavector_info="file: " + config['data']['cosmo_file'] + ", index: " + str(config['data']['index']) if config['data']['type'] == 0 else "N/A")
 
     np.savetxt("chains/chain_"+config['output']['chain_name']+".txt", np.c_[points, log_w, log_l], header=header, footer='log_Z = {log_z};  chain_time = {chain_time} (--> {chain_time_hms} hh:mm:ss)'.format(log_z=log_z, chain_time=chain_time, chain_time_hms=timedelta(seconds=chain_time)))
-    
+
+    print("MCMC finished. Time taken: {chain_time} seconds (--> {chain_time_hms} hh:mm:ss)".format(chain_time=chain_time, chain_time_hms=timedelta(seconds=chain_time)))
 
 """
 import cProfile
