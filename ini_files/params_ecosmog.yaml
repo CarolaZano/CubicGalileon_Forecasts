@@ -36,4 +36,4 @@ priors:
   b3: [0.8, 3.0]
   b4: [0.8, 3.0]
   b5: [0.8, 3.0] 
-  Planck_prior: True
+  Planck_prior: False
