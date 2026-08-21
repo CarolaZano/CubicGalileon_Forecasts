@@ -15,7 +15,7 @@ specs:
 
 
 data:
-  type: 0
+  type: 1
   #Types:
   #     0 -> synthetic data vector from Boost (read B(k,a) from file)
   #     1 -> from Emulator
@@ -30,12 +30,12 @@ data:
   params: ./ini_files/params_ecosmog.yaml
 
 output: 
-  chain_name: chain_mcmc_cG_3x2pt_LSSTY1_validation_i45_baryonic_k0p2_noPlanckprior_BBNprior
+  chain_name: chain_mcmc_cG_3x2pt_LSSTY1_emulatordata_baryonic_k0p2_noPlanckprior_BBNprior
 sampler: 
   mcmc:
     verbose: True
     n_eff: 10000
     n_live: 3000
     resume: True
-    hdf5_name:  chain_mcmc_cG_3x2pt_LSSTY1_validation_i45_baryonic_k0p2_noPlanckprior_BBNprior
+    hdf5_name:  chain_mcmc_cG_3x2pt_LSSTY1_emulatordata_baryonic_k0p2_noPlanckprior_BBNprior
     
