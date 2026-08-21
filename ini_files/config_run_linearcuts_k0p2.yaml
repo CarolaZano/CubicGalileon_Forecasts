@@ -36,12 +36,12 @@ model:
   #     "linear" -> linear model (Boost)
 
 output: 
-  chain_name: mcmc_cG_3x2pt_LSSTY1_emulatordata_linear_k0p2_linearmodel_noPlanckprior_BBNprior
+  chain_name: mcmc_cG_3x2pt_LSSTY1_emulatordata_linear_k0p2_linearmodel_noPlanckprior
 sampler: 
   mcmc:
     verbose: True
     n_eff: 10000
     n_live: 3000
     resume: True
-    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_emulatordata_linear_k0p2_linearmodel_noPlanckprior_BBNprior
+    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_emulatordata_linear_k0p2_linearmodel_noPlanckprior
     
