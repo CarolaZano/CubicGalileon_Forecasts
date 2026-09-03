@@ -4,7 +4,7 @@ specs:
   # max_GC -> kmax cut in z-bins - same for all
   scale_cuts:
     max_WL: 'linear' #3000
-    max_GC: 0.2 # h/Mpc
+    max_GC: 0.1 # h/Mpc
     cosmo: # for transformation from k_eff to ell
       'Omega_m': 0.31966
       'w0': -1.
@@ -15,7 +15,7 @@ specs:
 
 
 data:
-  type: 1
+  type: 0
   #Types:
   #     0 -> synthetic data vector from Boost (read B(k,a) from file)
   #     1 -> from Emulator
@@ -36,12 +36,12 @@ model:
   #     "linear" -> linear model (Boost)
 
 output: 
-  chain_name: mcmc_cG_3x2pt_LSSTY1_emulatordata_linear_k0p2_linearmodel_noPlanckprior
+  chain_name: chain_mcmc_cG_3x2pt_LSSTY1_validation_i45_linear_k0p1_linearmodel_noPlanckprior
 sampler: 
   mcmc:
     verbose: True
     n_eff: 10000
     n_live: 3000
     resume: True
-    hdf5_name:  mcmc_cG_3x2pt_LSSTY1_emulatordata_linear_k0p2_linearmodel_noPlanckprior
+    hdf5_name:  chain_mcmc_cG_3x2pt_LSSTY1_validation_i45_k0p1_linearmodel_noPlanckprior
     
