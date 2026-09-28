@@ -2,6 +2,8 @@
 
 This repository contains code to perform LSST 3x2pt data forecasts for the cubic Galileon gravity model using the Cubic Galileon emulator: https://nesar.github.io/CubicGalileonEmu/.
 
+Additional appendices to the paper can be found in the file Cubic_Galileon_Emu_appendices_github.pdf.
+
 The forecasts are currently set up for LSST Y1 only (with SRD covariance, https://github.com/CosmoLike/DESC_SRD). The setup uses CCL, which allows to modify the background evolution for Cubic Galileon as well as the power spectrum.
 
 The emulator was built on a LHS over the following parameters:
